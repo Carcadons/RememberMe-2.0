@@ -52,6 +52,9 @@ class RememberMeApp {
         starredView: !!window.starredView,
         addContactModal: !!window.addContactModal,
         contactDetailModal: !!window.contactDetailModal,
+        authModal: !!window.authModal,
+        authService: !!window.authService,
+        syncService: !!window.syncService,
         storage: !!window.storage,
         security: !!window.security,
         encryption: !!window.encryption
@@ -87,21 +90,119 @@ class RememberMeApp {
         console.log('[App] ContactDetailModal initialized');
       }
 
+      if (window.authModal) {
+        console.log('[App] Initializing AuthModal...');
+        window.authModal.init();
+        console.log('[App] AuthModal initialized');
+      }
+
       // Set up event listeners
       console.log('[App] Setting up event listeners...');
       this.setupEventListeners();
       console.log('[App] Event listeners configured');
 
-      // Check authentication
-      console.log('[App] Checking authentication...');
-      const needsAuth = await this.checkAuthentication();
-      console.log('[App] Needs authentication:', needsAuth);
+      // Check user authentication
+      console.log('[App] Checking user authentication...');
+      await this.checkUserAuth();
+    } catch (error) {
+      console.error('[App] ====== APPLICATION INITIALIZATION FAILED ======');
+      console.error('[App] Error:', error);
+      console.error('[App] Stack:', error.stack);
+      this.showError('Failed to initialize app. Please refresh.');
+    } finally {
+      console.log('[App] Hiding loading state');
+      this.hideLoading();
+    }
+  }
 
-      if (!needsAuth) {
-        console.log('[App] No auth required, loading data...');
-        await this.loadData();
-        console.log('[App] Data loaded');
+  /**
+   * Check if user is authenticated
+   */
+  async checkUserAuth() {
+    const isAuthenticated = window.authService.checkAuth();
+
+    if (!isAuthenticated) {
+      console.log('[App] User not authenticated, showing auth modal');
+      // Show auth modal instead of local passcode for first-time users
+      setTimeout(() => {
+        window.authModal.show();
+      }, 500);
+      return;
+    }
+
+    const user = window.authService.getCurrentUser();
+    console.log('[App] User authenticated:', user.id);
+
+    // Verify session with server
+    const isValid = await window.authService.verifySession();
+
+    if (!isValid) {
+      console.log('[App] Session invalid, showing auth modal');
+      window.authModal.show();
+      return;
+    }
+
+    // Perform initial sync (server data replaces local cache)
+    console.log('[App] Performing initial sync...');
+    const syncResult = await window.syncService.initialSync(user.id);
+
+    if (syncResult.success) {
+      console.log(`[App] Initial sync complete: ${syncResult.contacts?.length || 0} contacts loaded`);
+    } else {
+      console.warn('[App] Initial sync failed:', syncResult.error);
+      // Continue with local data
+    }
+
+    // Load UI data
+    console.log('[App] Loading UI data...');
+    await this.loadData();
+  }
+
+  /**
+   * Handle successful authentication
+   */
+  async onAuthSuccess() {
+    const user = window.authService.getCurrentUser();
+    console.log('[App] Authentication successful for user:', user.id);
+
+    // Perform initial sync after login
+    this.showLoading();
+
+    try {
+      // Check local data and sync
+      const localContacts = await window.storage.getAllContacts();
+
+      if (localContacts.length > 0) {
+        // User has local data - sync it to server
+        console.log(`[App] Found ${localContacts.length} local contacts, syncing...`);
+        await window.syncService.syncToServer(user.id);
       }
+
+      // Then pull server data
+      await window.syncService.syncFromServer(user.id);
+
+      // Reload UI
+      await this.loadData();
+
+      // Refresh all views
+      if (window.todayView && this.currentView === 'todayView') {
+        await window.todayView.loadTodaysData();
+      }
+      if (window.searchView) {
+        window.searchView.loadAllContacts();
+      }
+      if (window.starredView) {
+        await window.starredView.loadStarred();
+      }
+
+      this.showSuccess('Welcome back!');
+    } catch (error) {
+      console.error('[App] Auth success handler error:', error);
+      this.showError('Failed to sync data');
+    } finally {
+      this.hideLoading();
+    }
+  }
 
       this.initialized = true;
       console.log('[App] ====== APPLICATION INITIALIZED SUCCESSFULLY ======');
@@ -166,11 +267,9 @@ class RememberMeApp {
    */
   async loadData() {
     console.log('[App] Loading application data...');
-
     try {
       // Load today's view
       await window.todayView.loadTodaysData();
-
       console.log('[App] Data loaded successfully');
     } catch (error) {
       console.error('[App] Error loading data:', error);
@@ -179,11 +278,59 @@ class RememberMeApp {
   }
 
   /**
-   * Hide all data (when locking app)
+   * Logout user
    */
-  hideAllData() {
-    this.container.innerHTML = '';
-    this.showEmptyState();
+  async logout() {
+    if (!confirm('Are you sure you want to logout? All local data will be cleared.')) {
+      return;
+    }
+
+    console.log('[App] Logging out user');
+    this.showLoading();
+
+    try {
+      // Get user ID before logout
+      const user = window.authService.getCurrentUser();
+
+      // Clear sync state
+      window.syncService.reset();
+
+      // Clear local data
+      await window.storage.clearAllContacts();
+
+      // Logout from auth service
+      window.authService.logout();
+
+      // Clear UI
+      this.clearAllViews();
+
+      this.hideLoading();
+
+      // Show success message
+      this.showSuccess('Logged out successfully');
+
+      // Show auth modal after a delay
+      setTimeout(() => {
+        window.authModal.show();
+      }, 1000);
+
+    } catch (error) {
+      console.error('[App] Logout error:', error);
+      this.hideLoading();
+      this.showError('Logout failed');
+    }
+  }
+
+  /**
+   * Clear all view data
+   */
+  clearAllViews() {
+    document.getElementById('todayList').innerHTML = '';
+    document.getElementById('searchResults').innerHTML = '';
+    document.getElementById('starredList').innerHTML = '';
+
+    document.getElementById('todayEmpty').classList.remove('hidden');
+    document.getElementById('todayList').classList.add('hidden');
   }
 
   /**
@@ -201,11 +348,11 @@ class RememberMeApp {
       });
     });
 
-    // Floating action button (toggles import menu)
+    // Floating action button (opens manual contact creation)
     const addBtn = document.getElementById('addPersonBtn');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
-        this.toggleImportMenu();
+        this.addNewPerson();
       });
     }
 
@@ -225,6 +372,14 @@ class RememberMeApp {
     }
 
     // Mobile import buttons (in FAB menu)
+    const addManualBtnMobile = document.getElementById('addManualContactBtn');
+    if (addManualBtnMobile) {
+      addManualBtnMobile.addEventListener('click', () => {
+        this.hideImportMenu();
+        this.addNewPerson();
+      });
+    }
+
     const importBtnMobile = document.getElementById('importContactsBtnMobile');
     if (importBtnMobile) {
       importBtnMobile.addEventListener('click', () => {
@@ -245,6 +400,14 @@ class RememberMeApp {
     const authButton = document.getElementById('authButton');
     if (authButton) {
       // Already handled in security module
+    }
+
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        this.logout();
+      });
     }
 
     // Handle visibility change (for auth timeout)

@@ -11,6 +11,7 @@ class SearchView {
    */
   init() {
     this.attachEventListeners();
+    this.loadAllContacts();
     console.log('[Search] Initialized');
   }
 
@@ -44,6 +45,7 @@ class SearchView {
     try {
       this.allContacts = await window.storage.getAllContacts();
       console.log(`[Search] Loaded ${this.allContacts.length} contacts for search`);
+      this.renderAllContacts();
     } catch (error) {
       console.error('[Search] Error loading contacts:', error);
     }
@@ -55,7 +57,7 @@ class SearchView {
    */
   async handleSearch(query) {
     if (!query.trim()) {
-      this.clearResults();
+      this.renderAllContacts();
       return;
     }
 
@@ -186,6 +188,35 @@ class SearchView {
     }
 
     return 0;
+  }
+
+  /**
+   * Render all contacts in alphabetical order
+   */
+  renderAllContacts() {
+    if (this.allContacts.length === 0) {
+      this.clearResults();
+      return;
+    }
+
+    // Sort contacts alphabetically by name
+    const sortedContacts = [...this.allContacts].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    const html = `
+      <div style="margin-bottom: 1rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 600;">All Contacts</h2>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;">
+          ${sortedContacts.length} contact${sortedContacts.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+      <div class="search-results-list">
+        ${sortedContacts.map(contact => this.renderContactCard(contact)).join('')}
+      </div>
+    `;
+
+    this.container.innerHTML = html;
   }
 
   /**
