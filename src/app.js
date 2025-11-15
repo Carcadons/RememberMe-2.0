@@ -201,15 +201,15 @@ class RememberMeApp {
       });
     });
 
-    // Floating action button
+    // Floating action button (toggles import menu)
     const addBtn = document.getElementById('addPersonBtn');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
-        this.addNewPerson();
+        this.toggleImportMenu();
       });
     }
 
-    // Import contacts button
+    // Desktop import buttons (in empty state)
     const importBtn = document.getElementById('importContactsBtn');
     if (importBtn) {
       importBtn.addEventListener('click', () => {
@@ -217,10 +217,26 @@ class RememberMeApp {
       });
     }
 
-    // Import LinkedIn button
     const linkedinBtn = document.getElementById('importLinkedinBtn');
     if (linkedinBtn) {
       linkedinBtn.addEventListener('click', () => {
+        this.importLinkedinContacts();
+      });
+    }
+
+    // Mobile import buttons (in FAB menu)
+    const importBtnMobile = document.getElementById('importContactsBtnMobile');
+    if (importBtnMobile) {
+      importBtnMobile.addEventListener('click', () => {
+        this.hideImportMenu();
+        this.importContacts();
+      });
+    }
+
+    const linkedinBtnMobile = document.getElementById('importLinkedinBtnMobile');
+    if (linkedinBtnMobile) {
+      linkedinBtnMobile.addEventListener('click', () => {
+        this.hideImportMenu();
         this.importLinkedinContacts();
       });
     }
@@ -250,6 +266,18 @@ class RememberMeApp {
     window.addEventListener('offline', () => {
       console.log('[App] Offline');
       this.showWarning('You are offline');
+    });
+
+    // Close import menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const importMenu = document.getElementById('importMenu');
+      const fab = document.getElementById('addPersonBtn');
+
+      if (importMenu && !importMenu.classList.contains('hidden')) {
+        if (!importMenu.contains(e.target) && !fab.contains(e.target)) {
+          this.hideImportMenu();
+        }
+      }
     });
 
     console.log('[App] Event listeners set up');
@@ -305,6 +333,33 @@ class RememberMeApp {
         await window.starredView.loadStarred();
         break;
     }
+  }
+
+  /**
+   * Toggle import menu visibility
+   */
+  toggleImportMenu() {
+    const importMenu = document.getElementById('importMenu');
+    const isHidden = importMenu.classList.contains('hidden');
+
+    if (isHidden) {
+      console.log('[App] Showing import menu');
+      importMenu.classList.remove('hidden');
+      importMenu.style.display = 'flex';
+    } else {
+      console.log('[App] Hiding import menu');
+      this.hideImportMenu();
+    }
+  }
+
+  /**
+   * Hide import menu
+   */
+  hideImportMenu() {
+    const importMenu = document.getElementById('importMenu');
+    console.log('[App] Hiding import menu');
+    importMenu.classList.add('hidden');
+    importMenu.style.display = 'none';
   }
 
   /**
