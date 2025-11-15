@@ -22,7 +22,6 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Serve static files
-const path = require('path');
 const projectRoot = path.join(__dirname, '..');
 app.use(express.static(projectRoot + '/public'));
 app.use('/src', express.static(projectRoot + '/src'));
@@ -32,9 +31,9 @@ database.init().then(() => {
   console.log('[Server] Database ready');
   startServer();
 }).catch(err => {
-  console.error('[Server] Database initialization failed:', err);
-  console.error('[Server] Make sure you have added PostgreSQL to your Replit');
-  process.exit(1);
+  console.error('[Server] Database initialization failed:', err.message);
+  console.log('[Server] Starting without database...');
+  startServer();
 });
 
 function startServer() {
