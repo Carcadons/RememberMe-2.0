@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="favGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="60" cy="60" r="56" fill="url(#favGradient)"/>
+
+  <!-- Simplified brain/memory nodes -->
+  <circle cx="44" cy="62" r="8" fill="white" opacity="0.95"/>
+  <circle cx="60" cy="42" r="10" fill="white" opacity="0.95"/>
+  <circle cx="60" cy="42" r="6" fill="white" opacity="0"/>
+  <circle cx="76" cy="62" r="8" fill="white" opacity="0.95"/>
+
+  <!-- Connecting lines -->
+  <path d="M 51 56 Q 60 58 69 56" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 44 62 Q 52 70 60 62" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 60 62 Q 68 70 76 62" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+</svg>

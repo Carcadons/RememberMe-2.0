@@ -9,10 +9,11 @@
     <meta name="description" content="Private pocket-dossier for remembering people before meetings">
     <meta name="theme-color" content="#6366f1">
 
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <link rel="alternate icon" type="image/svg+xml" href="/images/favicon.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon.svg">
+    <link rel="mask-icon" href="/images/favicon.svg" color="#6366f1">
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -51,8 +52,12 @@
     <div class="app-container">
         <!-- Header -->
         <header class="header">
-            <div class="header-brand">
-                <h1 class="header-title">RememberMe</h1>
+            <div class="header-brand" style="display: flex; align-items: center; gap: 0.75rem;">
+                <img src="/images/favicon.svg" alt="RememberMe" width="32" height="32" style="border-radius: 8px;">
+                <div>
+                    <h1 class="header-title">RememberMe</h1>
+                    <p class="header-subtitle">Your people, remembered</p>
+                </div>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 <button class="auth-button" id="authButton">
