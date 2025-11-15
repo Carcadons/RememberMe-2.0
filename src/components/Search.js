@@ -295,13 +295,6 @@ class SearchView {
             `).join('')}
           </div>
         ` : ''}
-
-        <div style="margin-top: 1rem;">
-          <button class="btn btn-primary" style="width: 100%; padding: 0.5rem; font-size: 0.875rem;"
-                  onclick="event.stopPropagation(); window.app.showContactDetail('${contact.id}')">
-            View Details
-          </button>
-        </div>
       </div>
     `;
   }
