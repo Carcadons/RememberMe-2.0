@@ -273,11 +273,21 @@ class AddContactModal {
    */
   async saveContact() {
     console.log('[AddContactModal] Starting saveContact...');
+    console.log('[AddContactModal] isEdit:', this.isEdit);
+    console.log('[AddContactModal] editingContact:', this.editingContact);
+
     const name = document.getElementById('contactName').value.trim();
     console.log('[AddContactModal] Name:', name);
 
     if (!name) {
       alert('Name is required');
+      return;
+    }
+
+    // Validate edit mode state
+    if (this.isEdit && !this.editingContact) {
+      console.error('[AddContactModal] Error: isEdit is true but editingContact is null');
+      alert('Error: Cannot edit contact - no contact loaded');
       return;
     }
 
