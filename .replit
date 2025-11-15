@@ -1,6 +1,6 @@
 # Replit Configuration for RememberMe PWA
 hidden = [".config/**/*", "node_modules", "build"]
-modules = ["nodejs-18:v3-20230608-f4cd419"]
+modules = ["nodejs-18:v3-20230608-f4cd419", "postgresql-16"]
 
 # Development Environment
 [nix]
