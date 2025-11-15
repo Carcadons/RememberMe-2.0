@@ -1,10 +1,10 @@
 # Replit Configuration for RememberMe PWA
 hidden = [".config/**/*", "node_modules", "build"]
-modules = ["nodejs-14", "web"]
+modules = ["nodejs-18:v3-20230608-f4cd419"]
 
 # Development Environment
 [nix]
-channel = "stable-25_05"
+channel = "stable-22_11"
 
 [[ports]]
 localPort = 3000
