@@ -123,14 +123,19 @@ class Storage {
    * @returns {Promise<Object>} - Encrypted or plain data
    */
   async encryptIfEnabled(data) {
-    const encryptionEnabled = await this.isEncryptionEnabled();
-
-    if (!encryptionEnabled || !this.passcode) {
-      return data;
-    }
-
     try {
-      return await window.encryption.encryptObject(data, this.passcode);
+      const encryptionEnabled = await this.isEncryptionEnabled();
+      console.log('[Storage] encryptIfEnabled - encryptionEnabled:', encryptionEnabled, 'passcode:', !!this.passcode);
+
+      if (!encryptionEnabled || !this.passcode) {
+        console.log('[Storage] Not encrypting, returning data as-is', data);
+        return data;
+      }
+
+      console.log('[Storage] About to encrypt object with passcode');
+      const encrypted = await window.encryption.encryptObject(data, this.passcode);
+      console.log('[Storage] Encryption successful');
+      return encrypted;
     } catch (error) {
       console.error('[Storage] Encryption failed:', error);
       throw error;
@@ -170,34 +175,55 @@ class Storage {
    * @returns {Promise<string>} - Contact ID
    */
   async saveContact(contact) {
-    if (!this.db) await this.init();
+    console.log('[Storage] saveContact called with:', contact);
 
-    const contactId = contact.id || window.encryption.generateId();
-    const now = new Date().toISOString();
+    try {
+      if (!this.db) {
+        console.log('[Storage] Db not initialized, calling init...');
+        await this.init();
+      }
 
-    const contactData = {
-      ...contact,
-      id: contactId,
-      createdAt: contact.createdAt || now,
-      updatedAt: now,
-      synced: false
-    };
+      const contactId = contact.id || window.encryption.generateId();
+      console.log('[Storage] Generated contact ID:', contactId);
 
-    // Encrypt if enabled
-    const dataToStore = await this.encryptIfEnabled(contactData);
+      const now = new Date().toISOString();
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['contacts'], 'readwrite');
-      const store = transaction.objectStore('contacts');
-      const request = store.put(dataToStore);
-
-      request.onsuccess = () => {
-        console.log('[Storage] Contact saved:', contactId);
-        resolve(contactId);
+      const contactData = {
+        ...contact,
+        id: contactId,
+        createdAt: contact.createdAt || now,
+        updatedAt: now,
+        synced: false
       };
 
-      request.onerror = () => reject(request.error);
-    });
+      console.log('[Storage] Contact data prepared:', contactData);
+
+      // Encrypt if enabled
+      console.log('[Storage] About to encrypt (if enabled)...');
+      const dataToStore = await this.encryptIfEnabled(contactData);
+      console.log('[Storage] Data encrypted (or not), about to save to IndexedDB...');
+
+      return new Promise((resolve, reject) => {
+        console.log('[Storage] Creating transaction...');
+        const transaction = this.db.transaction(['contacts'], 'readwrite');
+        const store = transaction.objectStore('contacts');
+        console.log('[Storage] About to call store.put...');
+        const request = store.put(dataToStore);
+
+        request.onsuccess = () => {
+          console.log('[Storage] Contact saved successfully:', contactId);
+          resolve(contactId);
+        };
+
+        request.onerror = () => {
+          console.error('[Storage] Error saving contact:', request.error);
+          reject(request.error);
+        };
+      });
+    } catch (error) {
+      console.error('[Storage] Exception in saveContact:', error);
+      throw error;
+    }
   }
 
   /**

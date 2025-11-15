@@ -272,7 +272,9 @@ class AddContactModal {
    * Save contact
    */
   async saveContact() {
+    console.log('[AddContactModal] Starting saveContact...');
     const name = document.getElementById('contactName').value.trim();
+    console.log('[AddContactModal] Name:', name);
 
     if (!name) {
       alert('Name is required');
@@ -280,6 +282,12 @@ class AddContactModal {
     }
 
     try {
+      // Check if encryption is available
+      console.log('[AddContactModal] Checking encryption...');
+      if (!window.encryption) {
+        throw new Error('Encryption module not loaded');
+      }
+
       // Build contact data
       const contact = {
         id: this.isEdit ? this.editingContact.id : window.encryption.generateId(),
@@ -296,11 +304,14 @@ class AddContactModal {
         notes: []
       };
 
+      console.log('[AddContactModal] Basic contact data:', { id: contact.id, name: contact.name });
+
       // Get photo
       const photoPreview = document.getElementById('photoPreview');
       const img = photoPreview.querySelector('img');
       if (img) {
         contact.photo = img.src;
+        console.log('[AddContactModal] Photo added');
       }
 
       // Get quick facts
@@ -309,6 +320,7 @@ class AddContactModal {
           contact.quickFacts.push(input.value.trim());
         }
       });
+      console.log('[AddContactModal] Quick facts:', contact.quickFacts);
 
       // Get selected predefined tags
       document.querySelectorAll('.tag-option.selected').forEach(tag => {
@@ -321,24 +333,48 @@ class AddContactModal {
         const customTagArray = customTags.split(',').map(t => t.trim()).filter(t => t);
         contact.tags.push(...customTagArray);
       }
+      console.log('[AddContactModal] Tags:', contact.tags);
 
-      // Save to storage
-      await window.storage.saveContact(contact);
+      // Check storage availability
+      console.log('[AddContactModal] Checking storage...');
+      if (!window.storage) {
+        throw new Error('Storage module not loaded');
+      }
+
+      // Try to save to storage
+      console.log('[AddContactModal] Calling window.storage.saveContact...', contact);
+      const result = await window.storage.saveContact(contact);
+      console.log('[AddContactModal] saveContact returned:', result);
 
       // Update UI
+      console.log('[AddContactModal] Updating UI...');
       if (typeof window.todayView !== 'undefined') {
         await window.todayView.loadTodaysData();
+        console.log('[AddContactModal] Today view reloaded');
+      }
+
+      if (typeof window.starredView !== 'undefined') {
+        await window.starredView.loadStarred();
+        console.log('[AddContactModal] Starred view reloaded');
+      }
+
+      if (typeof window.searchView !== 'undefined') {
+        console.log('[AddContactModal] Search view reloaded (cleared cache)');
       }
 
       // Show success
+      console.log('[AddContactModal] Showing success message');
       window.app.showSuccess(this.isEdit ? 'Contact updated!' : 'Contact saved!');
 
+      console.log('[AddContactModal] Hiding modal');
       this.hide();
 
     } catch (error) {
-      console.error('Save contact error:', error);
-      alert('Failed to save contact. Please try again.');
+      console.error('[AddContactModal] FULL ERROR:', error);
+      console.error('Stack trace:', error.stack);
+      alert(`Failed to save contact: ${error.message}`);
     }
+    console.log('[AddContactModal] saveContact finished');
   }
 
   /**
