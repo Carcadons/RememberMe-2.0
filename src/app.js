@@ -383,6 +383,162 @@ class RememberMeApp {
   }
 
   /**
+   * Import contacts from LinkedIn
+   */
+  importLinkedinContacts() {
+    console.log('[App] LinkedIn import clicked');
+
+    const modalHTML = `
+      <div class="modal" id="linkedinModal" style="display: flex;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title">Import LinkedIn Contacts</h2>
+            <button class="modal-close" onclick="this.closest('.modal').style.display='none'">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin-bottom: 1rem;">LinkedIn doesn't allow direct importing, but you can export your connections to a CSV file and import them here:</p>
+
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Step 1: Export from LinkedIn</h3>
+            <ol style="margin-bottom: 1.5rem; padding-left: 1.5rem;">
+              <li>Go to <a href="https://www.linkedin.com/mypreferences/d/download-my-data" target="_blank">LinkedIn Data Export</a></li>
+              <li>Check "Connections"</li>
+              <li>Click "Request archive"</li>
+              <li>Wait for email (usually minutes)</li>
+              <li>Download the CSV file</li>
+            </ol>
+
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Step 2: Import CSV</h3>
+            <p style="margin-bottom: 1rem;">Select the CSV file you downloaded from LinkedIn:</p>
+
+            <input type="file" id="linkedinFile" accept=".csv" style="margin-bottom: 1.5rem;">
+
+            <div class="card-actions">
+              <button class="btn btn-secondary" onclick="this.closest('.modal').style.display='none'">Cancel</button>
+              <button class="btn btn-primary" id="processLinkedinBtn">Import LinkedIn CSV</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = document.getElementById('linkedinModal');
+
+    // Handle CSV import
+    const processBtn = document.getElementById('processLinkedinBtn');
+    processBtn.onclick = async () => {
+      const input = document.getElementById('linkedinFile');
+      const file = input.files[0];
+
+      if (!file) {
+        this.showError('Please select a CSV file');
+        return;
+      }
+
+      console.log('[App] Processing LinkedIn CSV:', file.name);
+      this.showLoading();
+
+      try {
+        const text = await file.text();
+        const contacts = this.parseLinkedinCSV(text);
+        console.log('[App] Parsed', contacts.length, 'LinkedIn contacts');
+
+        // Bulk import
+        let imported = 0;
+        for (const contact of contacts) {
+          try {
+            await window.storage.saveContact(contact);
+            imported++;
+          } catch (error) {
+            console.error('[App] Error importing LinkedIn contact:', contact.name, error);
+          }
+        }
+
+        this.hideLoading();
+        modal.style.display = 'none';
+        this.showSuccess(`Imported ${imported} LinkedIn connections!`);
+
+        // Refresh views
+        if (typeof window.todayView !== 'undefined') {
+          await window.todayView.loadTodaysData();
+        }
+        if (typeof window.starredView !== 'undefined') {
+          await window.starredView.loadStarred();
+        }
+
+      } catch (error) {
+        console.error('[App] Error processing LinkedIn CSV:', error);
+        this.hideLoading();
+        this.showError('Failed to process LinkedIn file');
+        modal.style.display = 'none';
+      }
+    };
+
+    // Clean up when closing
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
+  }
+
+  /**
+   * Parse LinkedIn CSV format
+   * @param {string} csvText - CSV file contents
+   * @returns {Array} - Array of contact objects
+   */
+  parseLinkedinCSV(csvText) {
+    console.log('[App] Parsing LinkedIn CSV...');
+
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    const contacts = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const row = {};
+
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+
+      // Create contact from LinkedIn data
+      const contact = {
+        id: window.encryption.generateId(),
+        name: `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim(),
+        title: row['Position'] || '',
+        company: row['Company'] || '',
+        email: row['Email Address'] || '',
+        phone: row['Phone Number'] || '',
+        quickFacts: [],
+        tags: ['linkedin', 'imported'],
+        starred: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Add context
+      if (row['Connected On']) {
+        contact.howWeMet = `Connected on LinkedIn: ${row['Connected On']}`;
+      }
+
+      // Add URL as quick fact
+      if (row['URL']) {
+        contact.quickFacts.push(`LinkedIn: ${row['URL']}`);
+      }
+
+      if (contact.name) {
+        contacts.push(contact);
+      }
+    }
+
+    console.log('[App] Parsed', contacts.length, 'LinkedIn contacts');
+    return contacts;
+  }
+
+  /**
    * Parse vCard format to contact objects
    * @param {string} vcardText - vCard file contents
    * @returns {Array} - Array of contact objects
