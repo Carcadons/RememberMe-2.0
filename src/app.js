@@ -209,6 +209,14 @@ class RememberMeApp {
       });
     }
 
+    // Import contacts button
+    const importBtn = document.getElementById('importContactsBtn');
+    if (importBtn) {
+      importBtn.addEventListener('click', () => {
+        this.importContacts();
+      });
+    }
+
     // Auth button
     const authButton = document.getElementById('authButton');
     if (authButton) {
@@ -299,6 +307,150 @@ class RememberMeApp {
     if (window.addContactModal) {
       window.addContactModal.show();
     }
+  }
+
+  /**
+   * Import contacts from iPhone/iOS
+   */
+  importContacts() {
+    console.log('[App] Import contacts clicked');
+
+    // Create hidden file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.vcf,text/vcard';
+    input.style.display = 'none';
+
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      console.log('[App] Selected file:', file.name, file.type, file.size);
+      this.showLoading();
+
+      try {
+        const text = await file.text();
+        console.log('[App] File loaded, parsing vCard...');
+        const contacts = this.parseVCard(text);
+        console.log('[App] Parsed', contacts.length, 'contacts');
+
+        if (contacts.length === 0) {
+          this.showError('No contacts found in file');
+          return;
+        }
+
+        // Bulk import
+        let imported = 0;
+        for (const contact of contacts) {
+          try {
+            await window.storage.saveContact(contact);
+            imported++;
+            console.log('[App] Imported contact:', contact.name);
+          } catch (error) {
+            console.error('[App] Error importing contact:', contact.name, error);
+          }
+        }
+
+        this.hideLoading();
+        this.showSuccess(`Imported ${imported} contacts!`);
+
+        // Refresh views
+        if (typeof window.todayView !== 'undefined') {
+          await window.todayView.loadTodaysData();
+        }
+        if (typeof window.starredView !== 'undefined') {
+          await window.starredView.loadStarred();
+        }
+
+      } catch (error) {
+        console.error('[App] Error reading file:', error);
+        this.hideLoading();
+        this.showError('Failed to read contacts file');
+      }
+    };
+
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+  }
+
+  /**
+   * Parse vCard format to contact objects
+   * @param {string} vcardText - vCard file contents
+   * @returns {Array} - Array of contact objects
+   */
+  parseVCard(vcardText) {
+    console.log('[App] Parsing vCard data...');
+
+    // Split multiple vCards
+    const cards = vcardText.split(/BEGIN:VCARD/gi).filter(card => card.trim());
+    const contacts = [];
+
+    for (const card of cards) {
+      const contact = {
+        id: window.encryption.generateId(),
+        name: '',
+        title: '',
+        company: '',
+        email: '',
+        phone: '',
+        quickFacts: [],
+        tags: [],
+        starred: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const lines = card.split('\n');
+
+      for (const line of lines) {
+        const cleanLine = line.trim();
+
+        // Name (Full Name)
+        if (cleanLine.match(/FN[:;]/i)) {
+          contact.name = cleanLine.replace(/.*FN[:;]*/i, '').replace(/^:/, '').trim();
+        }
+
+        // Name (structured)
+        if (cleanLine.match(/N[:;]/i) && !contact.name) {
+          const nameParts = cleanLine.replace(/.*N[:;]*/i, '').split(';');
+          contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim();
+        }
+
+        // Organization/Company
+        if (cleanLine.includes('ORG:')) {
+          contact.company = cleanLine.replace(/.*ORG[:;]*/i, '').split(';')[0].trim();
+        }
+
+        // Title
+        if (cleanLine.includes('TITLE:')) {
+          contact.title = cleanLine.replace(/.*TITLE:/i, '').trim();
+        }
+
+        // Email
+        if (cleanLine.match(/EMAIL[:;]/i)) {
+          const emailMatch = cleanLine.match(/EMAIL.*:(.*)/i);
+          if (emailMatch && !contact.email) {
+            contact.email = emailMatch[1].trim();
+          }
+        }
+
+        // Phone
+        if (cleanLine.match(/TEL[:;]/i)) {
+          const telMatch = cleanLine.match(/TEL.*:(.*)/i);
+          if (telMatch && !contact.phone) {
+            contact.phone = telMatch[1].trim();
+          }
+        }
+      }
+
+      if (contact.name) {
+        contacts.push(contact);
+      }
+    }
+
+    console.log('[App] Parsed', contacts.length, 'valid contacts');
+    return contacts;
   }
 
   /**
