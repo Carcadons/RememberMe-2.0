@@ -286,14 +286,10 @@ class SearchView {
           </div>
         ` : ''}
 
-        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-          <button class="btn btn-secondary" style="flex: 1; padding: 0.5rem; font-size: 0.875rem;"
-                  onclick="event.stopPropagation(); window.searchView.callContact('${contact.id}')">
-            ${contact.phone ? 'Call' : 'Message'}
-          </button>
-          <button class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.875rem;"
-                  onclick="event.stopPropagation(); window.searchView.editContact('${contact.id}')">
-            Edit
+        <div style="margin-top: 1rem;">
+          <button class="btn btn-primary" style="width: 100%; padding: 0.5rem; font-size: 0.875rem;"
+                  onclick="event.stopPropagation(); window.app.showContactDetail('${contact.id}')">
+            View Details
           </button>
         </div>
       </div>
@@ -332,14 +328,6 @@ class SearchView {
   editContact(contactId) {
     // Implementation will be in contact detail view
     console.log('[Search] Editing contact:', contactId);
-  }
-
-  /**
-   * Call or message contact
-   * @param {string} contactId
-   */
-  callContact(contactId) {
-    console.log('[Search] Call/message contact:', contactId);
   }
 
   /**

@@ -609,6 +609,21 @@ class RememberMeApp {
       tabButton.classList.add('active');
     }
 
+    // Show/hide FAB and import menu based on view
+    const fab = document.getElementById('addPersonBtn');
+    const importMenu = document.getElementById('importMenu');
+
+    if (fab && importMenu) {
+      if (viewId === 'contactsView') {
+        // Show FAB on Contacts page
+        fab.style.display = 'flex';
+      } else {
+        // Hide FAB on other pages
+        fab.style.display = 'none';
+        importMenu.classList.add('hidden');
+      }
+    }
+
     // Load data based on view
     this.loadViewData(viewId);
   }
