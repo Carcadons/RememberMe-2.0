@@ -81,7 +81,9 @@ class AuthService {
         })
       });
 
+      console.log('[Auth] Login response status:', response.status);
       const data = await response.json();
+      console.log('[Auth] Login response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');

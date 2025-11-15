@@ -198,21 +198,26 @@ class RememberMeApp {
 
     try {
       // Check local data and sync
+      console.log('[App] Checking local data for sync...');
       const localContacts = await window.storage.getAllContacts();
+      console.log(`[App] Found ${localContacts.length} local contacts`);
 
       if (localContacts.length > 0) {
         // User has local data - sync it to server
-        console.log(`[App] Found ${localContacts.length} local contacts, syncing...`);
+        console.log(`[App] Syncing ${localContacts.length} contacts to server...`);
         await window.syncService.syncToServer(user.id);
       }
 
       // Then pull server data
+      console.log('[App] Pulling data from server...');
       await window.syncService.syncFromServer(user.id);
 
       // Reload UI
+      console.log('[App] Reloading UI...');
       await this.loadData();
 
       // Refresh all views
+      console.log('[App] Refreshing views...');
       if (window.todayView && this.currentView === 'todayView') {
         await window.todayView.loadTodaysData();
       }
@@ -224,6 +229,7 @@ class RememberMeApp {
       }
 
       this.showSuccess('Welcome back!');
+      console.log('[App] Auth success complete');
     } catch (error) {
       console.error('[App] Auth success handler error:', error);
       this.showError('Failed to sync data');
@@ -297,12 +303,6 @@ class RememberMeApp {
         this.hideImportMenu();
         this.importLinkedinContacts();
       });
-    }
-
-    // Auth button
-    const authButton = document.getElementById('authButton');
-    if (authButton) {
-      // Already handled in security module
     }
 
     // Logout button
@@ -525,12 +525,6 @@ class RememberMeApp {
         this.hideImportMenu();
         this.importLinkedinContacts();
       });
-    }
-
-    // Auth button
-    const authButton = document.getElementById('authButton');
-    if (authButton) {
-      // Already handled in security module
     }
 
     // Logout button

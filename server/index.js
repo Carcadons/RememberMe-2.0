@@ -258,16 +258,19 @@ app.get('/api/sync/contacts', async (req, res) => {
     }
 
     const key = `user:${userId}:contacts`;
-    const contacts = await db.get(key).catch(() => ({}));
+    const contacts = await db.get(key).catch(() => {});
+
+    // Ensure contacts is an object
+    const contactsObj = contacts || {};
 
     // Filter by timestamp if provided
-    let filteredContacts = contacts;
+    let filteredContacts = contactsObj;
     if (since) {
-      filteredContacts = Object.values(contacts).filter(
-        contact => new Date(contact.lastModified) > new Date(since)
+      filteredContacts = Object.values(contactsObj).filter(contact =>
+        contact && contact.lastModified && new Date(contact.lastModified) > new Date(since)
       );
     } else {
-      filteredContacts = Object.values(contacts);
+      filteredContacts = Object.values(contactsObj).filter(contact => contact && contact.id);
     }
 
     res.json({
