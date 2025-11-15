@@ -9,7 +9,14 @@ channel = "stable-22_11"
 [[ports]]
 localPort = 3000
 externalPort = 80
-mode = "a"
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
+
+[[ports]]
+localPort = 43537
+externalPort = 3000
 
 # Run configuration - Serve the PWA static files
 [run]
@@ -33,6 +40,7 @@ NODE_ENV = "production"
 requiredFiles = [".replit", "replit.nix", "package.json", "server/index.js"]
 
 [workflows]
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Dev"
@@ -51,6 +59,27 @@ author = 39701622
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm start"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "RememberMe Server"
+
+[[workflows.workflow]]
+name = "RememberMe Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [agent]
 expertMode = true
