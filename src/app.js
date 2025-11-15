@@ -110,8 +110,15 @@ class RememberMeApp {
       console.error('[App] Stack:', error.stack);
       this.showError('Failed to initialize app. Please refresh.');
     } finally {
-      console.log('[App] Hiding loading state');
-      this.hideLoading();
+      // Only hide loading if user is authenticated
+      // If not authenticated, modal is showing so don't hide loading
+      const isAuthenticated = window.authService && window.authService.checkAuth();
+      if (isAuthenticated) {
+        console.log('[App] Hiding loading state');
+        this.hideLoading();
+      } else {
+        console.log('[App] Keeping loading hidden, waiting for auth modal');
+      }
     }
   }
 
@@ -124,9 +131,10 @@ class RememberMeApp {
     if (!isAuthenticated) {
       console.log('[App] User not authenticated, showing auth modal');
       // Show auth modal instead of local passcode for first-time users
+      this.hideLoading(); // Hide loading before showing modal
       setTimeout(() => {
         window.authModal.show();
-      }, 500);
+      }, 100);
       return;
     }
 
@@ -138,6 +146,7 @@ class RememberMeApp {
 
     if (!isValid) {
       console.log('[App] Session invalid, showing auth modal');
+      this.hideLoading(); // Hide loading before showing modal
       window.authModal.show();
       return;
     }

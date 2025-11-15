@@ -12,6 +12,8 @@ class AuthModal {
    * Show auth modal
    */
   show() {
+    console.log('[AuthModal] Showing auth modal, isLoginMode:', this.isLoginMode, 'document:', document);
+
     const modalHTML = `
       <div class="modal" id="authModal" style="display: flex;">
         <div class="modal-content">
@@ -59,9 +61,12 @@ class AuthModal {
       </div>
     `;
 
+    console.log('[AuthModal] Inserting modal into DOM');
     document.body.insertAdjacentHTML('beforeend', modalHTML);
+    console.log('[AuthModal] Modal inserted');
 
     this.attachEventListeners();
+    console.log('[AuthModal] Event listeners attached');
   }
 
   /**
