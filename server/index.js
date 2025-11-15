@@ -1,6 +1,8 @@
 // RememberMe Server - Replit Backend
 // Handles API endpoints for sync, push notifications, and shared cards
 
+console.log('[Server] ====== RememberMe Server Starting ======');
+console.log('[Server] Environment:', process.env.NODE_ENV || 'development');n
 const express = require('express');
 const Database = require('@replit/database');
 const crypto = require('crypto');
@@ -8,20 +10,49 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 // Initialize Express app
+console.log('[Server] Creating Express app...');
 const app = express();
 const db = new Database();
+console.log('[Server] App and Database initialized');
 
-// Middleware
+// Setup middleware
+console.log('[Server] Configuring middleware...');
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
+console.log('[Server] Middleware configured');
 
 // Serve static files from the project root
 const path = require('path');
 const projectRoot = path.join(__dirname, '..');
 
+console.log('[Server] Project root:', projectRoot);
+console.log('[Server] Public directory:', projectRoot + '/public');
+
+// Log directory contents
+const fs = require('fs');
+console.log('[Server] Checking public directory...');
+try {
+  const publicFiles = fs.existsSync(projectRoot + '/public')
+    ? fs.readdirSync(projectRoot + '/public')
+    : [];
+  console.log('[Server] Public directory files:', publicFiles);
+} catch (e) {
+  console.error('[Server] Error reading public dir:', e);
+}
+
+console.log('[Server] Setting up static file serving...');
 app.use(express.static(projectRoot + '/public'));
+console.log('[Server] Static files will be served from /public');
+
 app.use('/src', express.static(projectRoot + '/src'));
+console.log('[Server] Source files will be served from /src');
+
+// Log route setup
+console.log('[Server] Setting up routes...');
+console.log('[Server] Static file routes:');
+console.log('[Server]  - /* -> /public/');
+console.log('[Server]  - /src/* -> /src/');
 
 // === CORE API ENDPOINTS ===
 

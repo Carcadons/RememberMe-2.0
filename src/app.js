@@ -3,6 +3,7 @@
 
 class RememberMeApp {
   constructor() {
+    console.log('[App] App constructor called');
     this.currentView = 'todayView';
     this.initialized = false;
   }
@@ -11,46 +12,107 @@ class RememberMeApp {
    * Initialize the application
    */
   async init() {
-    console.log('[App] Initializing RememberMe...');
+    console.log('[App] ====== APPLICATION STARTUP ======');
+    console.log('[App] Environment:', {
+      userAgent: navigator.userAgent.substring(0, 100),
+      platform: navigator.platform,
+      language: navigator.language,
+      online: navigator.onLine,
+      cookieEnabled: navigator.cookieEnabled,
+      serviceWorker: 'serviceWorker' in navigator,
+      indexedDB: 'indexedDB' in window,
+      crypto: 'crypto' in window && 'subtle' in window.crypto
+    });
 
     try {
       // Show loading state
+      console.log('[App] Showing loading state');
       this.showLoading();
 
       // Register service worker
+      console.log('[App] Starting service worker registration...');
       await this.registerServiceWorker();
+      console.log('[App] Service worker registration complete');
 
       // Initialize storage
+      console.log('[App] Initializing storage...');
       await window.storage.init();
+      console.log('[App] Storage initialized');
 
       // Initialize security
+      console.log('[App] Initializing security...');
       await window.security.init();
+      console.log('[App] Security initialized');
 
       // Initialize UI components
-      if (window.todayView) await window.todayView.init();
-      if (window.searchView) window.searchView.init();
-      if (window.starredView) window.starredView.init();
-      if (window.addContactModal) window.addContactModal.init();
-      if (window.contactDetailModal) window.contactDetailModal.init();
+      console.log('[App] Initializing UI components...');
+      console.log('[App] UI Component availability:', {
+        todayView: !!window.todayView,
+        searchView: !!window.searchView,
+        starredView: !!window.starredView,
+        addContactModal: !!window.addContactModal,
+        contactDetailModal: !!window.contactDetailModal,
+        storage: !!window.storage,
+        security: !!window.security,
+        encryption: !!window.encryption
+      });
+
+      if (window.todayView) {
+        console.log('[App] Initializing TodayView...');
+        await window.todayView.init();
+        console.log('[App] TodayView initialized');
+      }
+
+      if (window.searchView) {
+        console.log('[App] Initializing SearchView...');
+        window.searchView.init();
+        console.log('[App] SearchView initialized');
+      }
+
+      if (window.starredView) {
+        console.log('[App] Initializing StarredView...');
+        window.starredView.init();
+        console.log('[App] StarredView initialized');
+      }
+
+      if (window.addContactModal) {
+        console.log('[App] Initializing AddContactModal...');
+        window.addContactModal.init();
+        console.log('[App] AddContactModal initialized');
+      }
+
+      if (window.contactDetailModal) {
+        console.log('[App] Initializing ContactDetailModal...');
+        window.contactDetailModal.init();
+        console.log('[App] ContactDetailModal initialized');
+      }
 
       // Set up event listeners
+      console.log('[App] Setting up event listeners...');
       this.setupEventListeners();
+      console.log('[App] Event listeners configured');
 
       // Check authentication
+      console.log('[App] Checking authentication...');
       const needsAuth = await this.checkAuthentication();
+      console.log('[App] Needs authentication:', needsAuth);
 
       if (!needsAuth) {
-        // Load data if no auth required
+        console.log('[App] No auth required, loading data...');
         await this.loadData();
+        console.log('[App] Data loaded');
       }
 
       this.initialized = true;
-      console.log('[App] RememberMe initialized successfully');
+      console.log('[App] ====== APPLICATION INITIALIZED SUCCESSFULLY ======');
 
     } catch (error) {
-      console.error('[App] Initialization error:', error);
+      console.error('[App] ====== APPLICATION INITIALIZATION FAILED ======');
+      console.error('[App] Error:', error);
+      console.error('[App] Stack:', error.stack);
       this.showError('Failed to initialize app. Please refresh.');
     } finally {
+      console.log('[App] Hiding loading state');
       this.hideLoading();
     }
   }
