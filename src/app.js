@@ -13,6 +13,8 @@ class RememberMeApp {
    */
   async init() {
     console.log('[App] ====== APPLICATION STARTUP ======');
+    this.initialized = false;  // Initialize this property
+
     console.log('[App] Environment:', {
       userAgent: navigator.userAgent.substring(0, 100),
       platform: navigator.platform,
@@ -126,15 +128,32 @@ class RememberMeApp {
    * Check if user is authenticated
    */
   async checkUserAuth() {
+    console.log('[App] checkUserAuth called, checking authService...');
+
+    if (!window.authService) {
+      console.error('[App] AuthService not initialized!');
+      return;
+    }
+
     const isAuthenticated = window.authService.checkAuth();
+    console.log('[App] isAuthenticated result:', isAuthenticated);
 
     if (!isAuthenticated) {
       console.log('[App] User not authenticated, showing auth modal');
       // Show auth modal instead of local passcode for first-time users
       this.hideLoading(); // Hide loading before showing modal
-      setTimeout(() => {
-        window.authModal.show();
-      }, 100);
+
+      // Verify modal exists before showing
+      if (window.authModal) {
+        console.log('[App] AuthModal found, showing...');
+        // Set initialized to false so nothing loads until auth
+        this.initialized = false;
+        setTimeout(() => {
+          window.authModal.show();
+        }, 100);
+      } else {
+        console.error('[App] AuthModal not initialized!');
+      }
       return;
     }
 
@@ -211,6 +230,10 @@ class RememberMeApp {
     } finally {
       this.hideLoading();
     }
+
+    // Mark app as initialized
+    this.initialized = true;
+    console.log('[App] ====== APPLICATION INITIALIZED SUCCESSFULLY ======');
   }
 
   /**

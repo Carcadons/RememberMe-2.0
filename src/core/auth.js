@@ -126,8 +126,10 @@ class AuthService {
    * Check if user is authenticated
    */
   checkAuth() {
+    console.log('[Auth] Checking auth status, current isAuthenticated:', this.isAuthenticated);
     if (!this.isAuthenticated) {
       this.loadSession();
+      console.log('[Auth] After loadSession, isAuthenticated:', this.isAuthenticated);
     }
     return this.isAuthenticated;
   }
