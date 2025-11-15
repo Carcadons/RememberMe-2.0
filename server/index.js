@@ -11,15 +11,19 @@ const cors = require('cors');
 const app = express();
 const db = new Database();
 
-// Middlewar
+// Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Serve static files from public directory
+const path = require('path');
+app.use(express.static('public'));
+
 // === CORE API ENDPOINTS ===
 
-// Health check
-app.get('/', (req, res) => {
+// Health check for API
+app.get('/api', (req, res) => {
   res.json({
     name: 'RememberMe API',
     version: '1.0.0',
@@ -30,6 +34,11 @@ app.get('/', (req, res) => {
       push: true
     }
   });
+});
+
+// Serve PWA at root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 // === SYNC ENDPOINTS ===

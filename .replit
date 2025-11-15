@@ -1,37 +1,33 @@
-# Replit Configuration for RememberMe App
+# Replit Configuration for RememberMe PWA
 hidden = [".config/**/*", "node_modules", "build"]
-modules = ["nodejs-14", "web"]
+modules = ["nodejs-18:v3-20230608-f4cd419"]
 
 # Development Environment
 [nix]
-channel = "stable-25_05"
+channel = "stable-22_11"
 
 [[ports]]
 localPort = 3000
 externalPort = 80
 mode = "a"
 
-# Run configuration
+# Run configuration - Serve the PWA static files
 [run]
+entrypoint = "server/index.js"
+module = "nodejs-18:v3-20230608-f4cd419"
 mode = "shell"
-command = "npm run dev"
+command = "npm start"
 
 # Deployment
 [deployment]
-run = ["sh", "-c", "npm run build && npm run preview"]
+run = ["sh", "-c", "npm start"]
 deploymentTarget = "cloudflare"
-public = false
+public = true
 
 # Environment variables
 [env]
-NODE_ENV = "development"
-VITE_REPLIT = "true"
-REPLIT_NO_COVERAGE_RERUN = "1"
+NODE_ENV = "production"
 
-# Watch patterns for hot reload
-[watch]
-patterns = ["src/**/*", "index.html"]
-ignorePatterns = ["node_modules", "build"]
-
-[agent]
-expertMode = true
+# GitHub Import configuration
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix", "package.json", "server/index.js"]
