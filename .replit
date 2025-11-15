@@ -1,0 +1,37 @@
+# Replit Configuration for RememberMe App
+hidden = [".config/**/*", "node_modules", "build"]
+modules = ["nodejs-20", "web", "bash", "nix"]
+
+# Development Environment
+[nix]
+channel = "stable-25_05"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+mode = "a"
+
+# Run configuration
+[run]
+mode = "shell"
+command = "npm run dev"
+
+# Deployment
+[deployment]
+run = ["sh", "-c", "npm run build && npm run preview"]
+deploymentTarget = "cloudflare"
+public = false
+
+# Environment variables
+[env]
+NODE_ENV = "development"
+VITE_REPLIT = "true"
+REPLIT_NO_COVERAGE_RERUN = "1"
+
+# Watch patterns for hot reload
+[watch]
+patterns = ["src/**/*", "index.html"]
+ignorePatterns = ["node_modules", "build"]
+
+[agent]
+expertMode = true
