@@ -16,9 +16,12 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve static files from public directory
+// Serve static files from the project root
 const path = require('path');
-app.use(express.static('public'));
+const projectRoot = path.join(__dirname, '..');
+
+app.use(express.static(projectRoot + '/public'));
+app.use('/src', express.static(projectRoot + '/src'));
 
 // === CORE API ENDPOINTS ===
 
