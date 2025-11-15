@@ -421,29 +421,47 @@ class RememberMeApp {
 
     try {
       // Get user ID before logout
+      console.log('[App] Getting current user...');
       const user = window.authService.getCurrentUser();
+      console.log('[App] User:', user?.id);
 
       // Clear sync state
+      console.log('[App] Clearing sync state...');
       window.syncService.reset();
 
       // Clear local data
+      console.log('[App] Clearing local data...');
       await window.storage.clearAllContacts();
+      console.log('[App] Local data cleared');
 
       // Logout from auth service
+      console.log('[App] Logging out from auth service...');
       window.authService.logout();
+      console.log('[App] Auth service logout complete');
 
       // Clear UI
+      console.log('[App] Clearing UI...');
       this.clearAllViews();
 
       this.hideLoading();
+      console.log('[App] Loading hidden');
 
       // Show success message
+      console.log('[App] Showing success message');
       this.showSuccess('Logged out successfully');
 
       // Show auth modal after a delay
+      console.log('[App] Scheduling auth modal to show...');
       setTimeout(() => {
-        window.authModal.show();
+        console.log('[App] Showing auth modal now...');
+        if (window.authModal) {
+          window.authModal.show();
+        } else {
+          console.error('[App] AuthModal not available!');
+        }
       }, 1000);
+
+      console.log('[App] Logout complete');
 
     } catch (error) {
       console.error('[App] Logout error:', error);

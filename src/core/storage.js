@@ -505,6 +505,29 @@ class Storage {
       await this.saveMeeting(item);
     }
   }
+
+  /**
+   * Clear all contacts (for logout)
+   */
+  async clearAllContacts() {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['contacts'], 'readwrite');
+      const store = transaction.objectStore('contacts');
+      const request = store.clear();
+
+      request.onsuccess = () => {
+        console.log('[Storage] All contacts cleared');
+        resolve();
+      };
+
+      request.onerror = () => {
+        console.error('[Storage] Error clearing contacts:', request.error);
+        reject(request.error);
+      };
+    });
+  }
 }
 
 // Export singleton instance

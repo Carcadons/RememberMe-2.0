@@ -30,7 +30,7 @@ class AuthModal {
 
               <div class="form-group" id="nameGroup" style="display: ${this.isLoginMode ? 'none' : 'block'};">
                 <label class="form-label">Full Name</label>
-                <input type="text" class="form-control" id="nameInput" required placeholder="Your Name">
+                <input type="text" class="form-control" id="nameInput" ${this.isLoginMode ? '' : 'required'} placeholder="Your Name">
               </div>
 
               <div class="form-group">
