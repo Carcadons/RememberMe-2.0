@@ -31,3 +31,26 @@ NODE_ENV = "production"
 # GitHub Import configuration
 [gitHubImport]
 requiredFiles = [".replit", "replit.nix", "package.json", "server/index.js"]
+
+[workflows]
+
+[[workflows.workflow]]
+name = "Dev"
+mode = "sequential"
+author = 39701622
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start dev"
+
+[[workflows.workflow]]
+name = "Prod"
+mode = "sequential"
+author = 39701622
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
+
+[agent]
+expertMode = true
