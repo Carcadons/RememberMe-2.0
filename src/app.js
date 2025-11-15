@@ -217,6 +217,14 @@ class RememberMeApp {
       });
     }
 
+    // Import LinkedIn button
+    const linkedinBtn = document.getElementById('importLinkedinBtn');
+    if (linkedinBtn) {
+      linkedinBtn.addEventListener('click', () => {
+        this.importLinkedinContacts();
+      });
+    }
+
     // Auth button
     const authButton = document.getElementById('authButton');
     if (authButton) {

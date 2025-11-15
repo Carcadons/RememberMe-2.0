@@ -48,9 +48,14 @@
                     </svg>
                     <h3 class="text-gradient">Start Your Day Right</h3>
                     <p>Add contacts to see who's on your schedule today</p>
-                    <button class="btn btn-primary mt-4" id="importContactsBtn" style="max-width: 300px; margin: 1.5rem auto 0; display: block; width: auto;">
-                        📱 Import from iPhone Contacts
-                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 300px; margin: 1.5rem auto 0;">
+                        <button class="btn btn-primary" id="importContactsBtn">
+                            📱 Import from iPhone Contacts
+                        </button>
+                        <button class="btn btn-secondary" id="importLinkedinBtn">
+                            💼 Import from LinkedIn
+                        </button>
+                    </div>
                 </div>
                 <div id="todayList" class="hidden"></div>
             </div>
