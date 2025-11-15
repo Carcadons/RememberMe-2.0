@@ -210,8 +210,24 @@ class Storage {
         console.log('[Storage] About to call store.put...');
         const request = store.put(dataToStore);
 
-        request.onsuccess = () => {
+        request.onsuccess = async () => {
           console.log('[Storage] Contact saved successfully:', contactId);
+
+          // Auto-sync to server if user is logged in
+          try {
+            if (window.authService && window.authService.isAuthenticated && window.syncService) {
+              const user = window.authService.getCurrentUser();
+              if (user && user.id) {
+                console.log('[Storage] Auto-syncing contact to server...');
+                await window.syncService.syncInBackground(user.id);
+                console.log('[Storage] Auto-sync complete');
+              }
+            }
+          } catch (syncError) {
+            console.warn('[Storage] Auto-sync failed:', syncError);
+            // Don't reject the save just because sync failed
+          }
+
           resolve(contactId);
         };
 

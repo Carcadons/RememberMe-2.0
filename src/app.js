@@ -98,6 +98,12 @@ class RememberMeApp {
         console.log('[App] AuthModal initialized');
       }
 
+      if (window.userMenu) {
+        console.log('[App] Initializing UserMenu...');
+        window.userMenu.init();
+        console.log('[App] UserMenu initialized');
+      }
+
       // Set up event listeners
       console.log('[App] Setting up event listeners...');
       this.setupEventListeners();
@@ -302,14 +308,6 @@ class RememberMeApp {
       linkedinBtnMobile.addEventListener('click', () => {
         this.hideImportMenu();
         this.importLinkedinContacts();
-      });
-    }
-
-    // Logout button
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        this.logout();
       });
     }
 
@@ -542,14 +540,6 @@ class RememberMeApp {
       linkedinBtnMobile.addEventListener('click', () => {
         this.hideImportMenu();
         this.importLinkedinContacts();
-      });
-    }
-
-    // Logout button
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        this.logout();
       });
     }
 

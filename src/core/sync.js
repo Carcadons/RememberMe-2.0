@@ -105,6 +105,16 @@ class SyncService {
 
       console.log(`[Sync] Successfully synced ${data.synced} contacts to server`);
 
+      // Mark local contacts as synced
+      console.log('[Sync] Marking local contacts as synced...');
+      for (const contact of localContacts) {
+        try {
+          await window.storage.markAsSynced('contacts', contact.id);
+        } catch (error) {
+          console.warn('[Sync] Failed to mark contact as synced:', contact.id, error);
+        }
+      }
+
       // Update last sync time
       this.lastSyncTime = new Date().toISOString();
       localStorage.setItem('rememberme_lastSync', this.lastSyncTime);

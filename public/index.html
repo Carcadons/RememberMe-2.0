@@ -59,9 +59,35 @@
                     <p class="header-subtitle">Your people, remembered</p>
                 </div>
             </div>
-            <button class="btn btn-secondary" id="logoutBtn" title="Logout" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
-                👤 Logout
-            </button>
+
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <!-- Connection Status Indicator -->
+                <div id="connectionStatus" class="connection-indicator" title="Online" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem; border-radius: 20px; background: rgba(16, 185, 129, 0.1); color: #10b981; font-size: 0.75rem; font-weight: 500;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                    <span>Online</span>
+                </div>
+
+                <!-- User Menu -->
+                <div class="user-menu" style="position: relative;">
+                    <button class="btn btn-secondary" id="userMenuBtn" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem;">
+                        <span id="userInitial">👤</span>
+                    </button>
+
+                    <!-- User Menu Dropdown -->
+                    <div id="userMenuDropdown" class="dropdown-menu hidden" style="position: absolute; top: 100%; right: 0; margin-top: 0.5rem; min-width: 200px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 1000;">
+                        <div class="dropdown-header" style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <div id="userName" style="font-weight: 600; font-size: 0.875rem;"></div>
+                            <div id="userEmail" style="font-size: 0.75rem; color: var(--text-secondary);"></div>
+                        </div>
+
+                        <div class="dropdown-content" style="padding: 0.5rem;">
+                            <button id="logoutBtn" class="dropdown-item" style="width: 100%; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; border: none; background: none; border-radius: var(--radius-xs); font-size: 0.875rem; cursor: pointer; transition: var(--transition);">
+                                👤 Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </header>
 
         <!-- Main Content -->
@@ -163,6 +189,7 @@
     <script src="/src/core/sync.js"></script>
     <script src="/src/core/security.js"></script>
     <script src="/src/components/AuthModal.js"></script>
+    <script src="/src/components/UserMenu.js"></script>
     <script src="/src/components/TodayView.js"></script>
     <script src="/src/components/Search.js"></script>
     <script src="/src/components/StarredView.js"></script>
