@@ -2,7 +2,7 @@
 // Handles API endpoints for sync, push notifications, and shared cards
 
 console.log('[Server] ====== RememberMe Server Starting ======');
-console.log('[Server] Environment:', process.env.NODE_ENV || 'development');n
+console.log('[Server] Environment:', process.env.NODE_ENV || 'development');
 const express = require('express');
 const Database = require('@replit/database');
 const crypto = require('crypto');
@@ -480,8 +480,8 @@ app.use((req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`RememberMe API server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
