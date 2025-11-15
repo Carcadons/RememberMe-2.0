@@ -242,6 +242,113 @@ class RememberMeApp {
   setupEventListeners() {
     console.log('[App] Setting up event listeners...');
 
+    // Tab navigation
+    document.querySelectorAll('.tab-button').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const viewId = button.dataset.view;
+        this.switchView(viewId);
+      });
+    });
+
+    // Floating action button (opens manual contact creation)
+    const addBtn = document.getElementById('addPersonBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        this.addNewPerson();
+      });
+    }
+
+    // Desktop import buttons (in empty state)
+    const importBtn = document.getElementById('importContactsBtn');
+    if (importBtn) {
+      importBtn.addEventListener('click', () => {
+        this.importContacts();
+      });
+    }
+
+    const linkedinBtn = document.getElementById('importLinkedinBtn');
+    if (linkedinBtn) {
+      linkedinBtn.addEventListener('click', () => {
+        this.importLinkedinContacts();
+      });
+    }
+
+    // Mobile import buttons (in FAB menu)
+    const addManualBtnMobile = document.getElementById('addManualContactBtn');
+    if (addManualBtnMobile) {
+      addManualBtnMobile.addEventListener('click', () => {
+        this.hideImportMenu();
+        this.addNewPerson();
+      });
+    }
+
+    const importBtnMobile = document.getElementById('importContactsBtnMobile');
+    if (importBtnMobile) {
+      importBtnMobile.addEventListener('click', () => {
+        this.hideImportMenu();
+        this.importContacts();
+      });
+    }
+
+    const linkedinBtnMobile = document.getElementById('importLinkedinBtnMobile');
+    if (linkedinBtnMobile) {
+      linkedinBtnMobile.addEventListener('click', () => {
+        this.hideImportMenu();
+        this.importLinkedinContacts();
+      });
+    }
+
+    // Auth button
+    const authButton = document.getElementById('authButton');
+    if (authButton) {
+      // Already handled in security module
+    }
+
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        this.logout();
+      });
+    }
+
+    // Handle visibility change (for auth timeout)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[App] App became visible');
+        if (window.security.isAuthenticated) {
+          window.security.resetAuthTimer();
+        }
+      }
+    });
+
+    // Handle online/offline
+    window.addEventListener('online', () => {
+      console.log('[App] Online');
+      this.showSuccess('Back online');
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('[App] Offline');
+      this.showWarning('You are offline');
+    });
+
+    // Close import menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const importMenu = document.getElementById('importMenu');
+      const fab = document.getElementById('addPersonBtn');
+
+      if (importMenu && !importMenu.classList.contains('hidden')) {
+        if (!importMenu.contains(e.target) && !fab.contains(e.target)) {
+          this.hideImportMenu();
+        }
+      }
+    });
+
+    console.log('[App] Event listeners set up');
+  }
+
   /**
    * Register service worker
    */
