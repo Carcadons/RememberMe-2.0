@@ -197,6 +197,7 @@ class RememberMeApp {
    */
   async onAuthSuccess() {
     const user = window.authService.getCurrentUser();
+    const token = window.authService.token;
     console.log('[App] Authentication successful for user:', user.id);
 
     // Perform initial sync after login
@@ -211,12 +212,12 @@ class RememberMeApp {
       if (localContacts.length > 0) {
         // User has local data - sync it to server
         console.log(`[App] Syncing ${localContacts.length} contacts to server...`);
-        await window.syncService.syncToServer(user.id);
+        await window.syncService.syncToServer();
       }
 
       // Then pull server data
       console.log('[App] Pulling data from server...');
-      await window.syncService.syncFromServer(user.id);
+      await window.syncService.syncFromServer();
 
       // Reload UI
       console.log('[App] Reloading UI...');

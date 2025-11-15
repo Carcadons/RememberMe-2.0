@@ -48,8 +48,9 @@ class AuthService {
 
       console.log('[Auth] Registration successful:', data.user.id);
 
-      // Store user session
+      // Store user session and token
       this.user = data.user;
+      this.token = data.token;  // Store the token from server response
       this.isAuthenticated = true;
       this.saveSession();
 
@@ -91,8 +92,9 @@ class AuthService {
 
       console.log('[Auth] Login successful:', data.user.id);
 
-      // Store user session
+      // Store user session and token
       this.user = data.user;
+      this.token = data.token;  // Store the token from server response
       this.isAuthenticated = true;
       this.saveSession();
 
@@ -143,6 +145,9 @@ class AuthService {
     if (this.user) {
       localStorage.setItem('rememberme_user', JSON.stringify(this.user));
       localStorage.setItem('rememberme_auth', 'true');
+      if (this.token) {
+        localStorage.setItem('rememberme_token', this.token);
+      }
     }
   }
 
@@ -153,9 +158,11 @@ class AuthService {
     try {
       const userData = localStorage.getItem('rememberme_user');
       const authStatus = localStorage.getItem('rememberme_auth');
+      const token = localStorage.getItem('rememberme_token');
 
       if (userData && authStatus === 'true') {
         this.user = JSON.parse(userData);
+        this.token = token;
         this.isAuthenticated = true;
         console.log('[Auth] Session loaded for user:', this.user.id);
       }
@@ -171,6 +178,18 @@ class AuthService {
   clearSession() {
     localStorage.removeItem('rememberme_user');
     localStorage.removeItem('rememberme_auth');
+    localStorage.removeItem('rememberme_token');
+    this.user = null;
+    this.token = null;
+    this.isAuthenticated = false;
+  }
+
+  /**
+   * Logout user
+   */
+  logout() {
+    this.clearSession();
+    console.log('[Auth] User logged out');
   }
 
   /**
