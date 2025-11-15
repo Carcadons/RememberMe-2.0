@@ -1,8 +1,9 @@
-// Search Component with Fuzzy Search
+// Contacts/Search Component - Displays and searches contacts
 class SearchView {
   constructor() {
-    this.container = document.getElementById('searchResults');
+    this.container = document.getElementById('contactsList');
     this.searchInput = document.getElementById('searchInput');
+    this.emptyState = document.getElementById('contactsEmpty');
     this.allContacts = [];
   }
 
@@ -195,9 +196,18 @@ class SearchView {
    */
   renderAllContacts() {
     if (this.allContacts.length === 0) {
-      this.clearResults();
+      this.container.classList.add('hidden');
+      if (this.emptyState) {
+        this.emptyState.classList.remove('hidden');
+      }
       return;
     }
+
+    // Hide empty state, show contacts
+    if (this.emptyState) {
+      this.emptyState.classList.add('hidden');
+    }
+    this.container.classList.remove('hidden');
 
     // Sort contacts alphabetically by name
     const sortedContacts = [...this.allContacts].sort((a, b) =>
