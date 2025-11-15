@@ -213,19 +213,11 @@ class RememberMeApp {
     }
   }
 
-      this.initialized = true;
-      console.log('[App] ====== APPLICATION INITIALIZED SUCCESSFULLY ======');
-
-    } catch (error) {
-      console.error('[App] ====== APPLICATION INITIALIZATION FAILED ======');
-      console.error('[App] Error:', error);
-      console.error('[App] Stack:', error.stack);
-      this.showError('Failed to initialize app. Please refresh.');
-    } finally {
-      console.log('[App] Hiding loading state');
-      this.hideLoading();
-    }
-  }
+  /**
+   * Set up event listeners
+   */
+  setupEventListeners() {
+    console.log('[App] Setting up event listeners...');
 
   /**
    * Register service worker
