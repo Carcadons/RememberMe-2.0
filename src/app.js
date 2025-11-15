@@ -27,7 +27,11 @@ class RememberMeApp {
       await window.security.init();
 
       // Initialize UI components
-      await window.todayView.init();
+      if (window.todayView) await window.todayView.init();
+      if (window.searchView) window.searchView.init();
+      if (window.starredView) window.starredView.init();
+      if (window.addContactModal) window.addContactModal.init();
+      if (window.contactDetailModal) window.contactDetailModal.init();
 
       // Set up event listeners
       this.setupEventListeners();
@@ -217,10 +221,10 @@ class RememberMeApp {
         await window.todayView.loadTodaysData();
         break;
       case 'searchView':
-        // Initialize search
+        window.searchView.init();
         break;
       case 'starredView':
-        // Load starred contacts
+        await window.starredView.loadStarred();
         break;
     }
   }
@@ -230,8 +234,19 @@ class RememberMeApp {
    */
   addNewPerson() {
     console.log('[App] Add new person clicked');
-    // TO DO: Implement add person modal/flow
-    alert('Add new person feature coming soon!');
+    if (window.addContactModal) {
+      window.addContactModal.show();
+    }
+  }
+
+  /**
+   * Show contact detail
+   * @param {string} contactId
+   */
+  showContactDetail(contactId) {
+    if (window.contactDetailModal) {
+      window.contactDetailModal.show(contactId);
+    }
   }
 
   /**

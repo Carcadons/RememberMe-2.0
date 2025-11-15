@@ -279,6 +279,24 @@ class TodayView {
   }
 
   /**
+   * Mark meeting as completed
+   * @param {string} meetingId
+   */
+  async markMeetingCompleted(meetingId) {
+    try {
+      const meeting = await window.storage.getMeeting(meetingId);
+      if (meeting) {
+        meeting.completed = true;
+        meeting.completedAt = new Date().toISOString();
+        await window.storage.saveMeeting(meeting);
+        await this.loadTodaysData();
+      }
+    } catch (error) {
+      console.error('[TodayView] Error completing meeting:', error);
+    }
+  }
+
+  /**
    * Format time for display
    * @param {string} dateString
    * @returns {string}
