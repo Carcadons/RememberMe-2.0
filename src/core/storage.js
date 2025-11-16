@@ -37,6 +37,7 @@ class Storage {
           contactStore.createIndex('company', 'company', { unique: false });
           contactStore.createIndex('lastMet', 'lastMet', { unique: false });
           contactStore.createIndex('starred', 'starred', { unique: false });
+          contactStore.createIndex('userId', 'userId', { unique: false });
           console.log('[Storage] Created contacts store');
         }
 
@@ -189,9 +190,17 @@ class Storage {
 
       const now = new Date().toISOString();
 
+      // Get current user ID if available
+      let userId = null;
+      if (window.authService && window.authService.checkAuth() && window.authService.getCurrentUser()) {
+        userId = window.authService.getCurrentUser().id;
+        console.log('[Storage] Adding userId to contact:', userId);
+      }
+
       const contactData = {
         ...contact,
         id: contactId,
+        userId: userId || contact.userId,
         createdAt: contact.createdAt || now,
         updatedAt: now,
         synced: false
@@ -294,6 +303,16 @@ class Storage {
   async getAllContacts() {
     if (!this.db) await this.init();
 
+    // Get current userId if authenticated
+    let currentUserId = null;
+    if (window.authService && window.authService.checkAuth() && window.authService.getCurrentUser()) {
+      currentUserId = window.authService.getCurrentUser().id;
+      console.log('[Storage] Filtering contacts for user:', currentUserId);
+    } else {
+      console.log('[Storage] No user authenticated, returning empty contacts');
+      return [];
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['contacts'], 'readonly');
       const store = transaction.objectStore('contacts');
@@ -305,12 +324,15 @@ class Storage {
         for (const contact of request.result) {
           try {
             const decrypted = await this.decryptIfEnabled(contact);
-            contacts.push(decrypted);
+            // Only return contacts for current user (or unowned contacts for backwards compatibility)
+            if (!decrypted.userId || decrypted.userId === currentUserId) {
+              contacts.push(decrypted);
+            }
           } catch (error) {
             console.error('[Storage] Failed to decrypt contact:', error);
           }
         }
-        console.log('[Storage] getAllContacts - returning', contacts.length, 'decrypted contacts');
+        console.log('[Storage] getAllContacts - returning', contacts.length, 'filtered contacts');
         resolve(contacts);
       };
 
