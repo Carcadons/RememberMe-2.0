@@ -517,4 +517,4 @@ class StorageV2 {
   }
 }
 
-window.storageV2 = new StorageV2();
+window.storage = new StorageV2();
