@@ -241,6 +241,246 @@ class StorageV2 {
   }
 
   /**
+   * Get meetings scheduled for today
+   * @returns {Promise<Array>} Array of meetings scheduled for today
+   */
+  async getTodaysMeetings() {
+    if (!this.db) await this.init();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['meetings'], 'readonly');
+      const store = transaction.objectStore('meetings');
+
+      // Get all meetings for the current user
+      const userId = this.getCurrentUserIdOrNull();
+      if (!userId) {
+        resolve([]);
+        return;
+      }
+
+      const index = store.index('userId');
+      const request = index.getAll(userId);
+
+      request.onsuccess = () => {
+        const allMeetings = request.result || [];
+
+        // Filter meetings for today
+        const todaysMeetings = allMeetings.filter(meeting => {
+          if (!meeting.scheduledDate) return false;
+          const meetingDate = new Date(meeting.scheduledDate);
+          return meetingDate >= today && meetingDate < tomorrow;
+        });
+
+        resolve(todaysMeetings);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Get meeting by ID
+   * @param {string} meetingId
+   * @returns {Promise<Object|null>}
+   */
+  async getMeeting(meetingId) {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['meetings'], 'readonly');
+      const store = transaction.objectStore('meetings');
+      const request = store.get(meetingId);
+
+      request.onsuccess = () => {
+        const meeting = request.result;
+
+        // Verify user owns this meeting
+        const currentUserId = this.getCurrentUserIdOrNull();
+        if (meeting && currentUserId && meeting.userId !== currentUserId) {
+          console.warn('[StorageV2] SECURITY: Meeting userId mismatch');
+          resolve(null);
+          return;
+        }
+
+        resolve(meeting || null);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Save a meeting (creates or updates)
+   * @param {Object} meeting
+   * @returns {Promise<string>} The meeting ID
+   */
+  async saveMeeting(meeting) {
+    if (!this.db) await this.init();
+
+    // Ensure meeting has required fields
+    if (!meeting.id) {
+      meeting.id = this.createId();
+    }
+
+    // Ensure userId is set
+    if (!meeting.userId) {
+      const userId = this.getCurrentUserIdOrNull();
+      if (!userId) {
+        throw new Error('User not authenticated. Cannot save meeting.');
+      }
+      meeting.userId = userId;
+    }
+
+    meeting.lastModified = new Date().toISOString();
+    meeting.syncState = meeting.syncState || 'pending';
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['meetings'], 'readwrite');
+      const store = transaction.objectStore('meetings');
+      const request = store.put(meeting);
+
+      request.onsuccess = async () => {
+        console.log(`[StorageV2] Meeting saved: ${meeting.id}`);
+
+        // Add to sync queue (unless explicitly told not to)
+        try {
+          await this.addToSyncQueue('meeting', 'update', meeting);
+        } catch (syncError) {
+          console.error('[StorageV2] Error adding meeting to sync queue:', syncError);
+        }
+
+        resolve(meeting.id);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Get unsynced items of a specific entity type
+   * @param {string} entityType - 'contacts' or 'meetings'
+   * @returns {Promise<Array>}
+   */
+  async getUnsynced(entityType) {
+    if (!this.db) await this.init();
+
+    const storeName = entityType === 'meetings' ? 'meetings' : 'contacts';
+    const storeKeyPath = entityType === 'meetings' ? 'id' : 'id';
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
+
+      const userId = this.getCurrentUserIdOrNull();
+      if (!userId) {
+        resolve([]);
+        return;
+      }
+
+      const index = store.index('userId');
+      const request = index.getAll(userId);
+
+      request.onsuccess = () => {
+        const allItems = request.result || [];
+        const unsyncedItems = allItems.filter(item => item.syncState === 'pending' || item.syncState === 'modified');
+        resolve(unsyncedItems);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Mark an item as synced with the server
+   * @param {string} entityType - 'contacts' or 'meetings'
+   * @param {string} itemId
+   * @returns {Promise<void>}
+   */
+  async markAsSynced(entityType, itemId) {
+    if (!this.db) await this.init();
+
+    const isMeeting = entityType === 'meetings';
+    const storeName = isMeeting ? 'meetings' : 'contacts';
+    const getMethod = isMeeting ? this.getMeeting.bind(this) : this.getContact.bind(this);
+    const saveMethod = isMeeting ? this.saveMeeting.bind(this) : this.saveContact.bind(this);
+
+    try {
+      const item = await getMethod(itemId);
+      if (item) {
+        item.syncState = 'synced';
+        item.lastSynced = new Date().toISOString();
+
+        // Skip sync queue since we're marking as already synced
+        if (isMeeting) {
+          await this.saveMeetingInternal(item);
+        } else {
+          await this.saveContactInternal(item, true);
+        }
+      }
+    } catch (error) {
+      console.error(`[StorageV2] Error marking ${entityType} as synced:`, error);
+    }
+  }
+
+  /**
+   * Internal save meeting method without sync queue (used by markAsSynced)
+   * @private
+   */
+  async saveMeetingInternal(meeting) {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['meetings'], 'readwrite');
+      const store = transaction.objectStore('meetings');
+      const request = store.put(meeting);
+
+      request.onsuccess = () => resolve(meeting.id);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Clear all contacts (for logout)
+   * @returns {Promise<void>}
+   */
+  async clearAllContacts() {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['contacts'], 'readwrite');
+      const store = transaction.objectStore('contacts');
+
+      // Only clear contacts for current user
+      const userId = this.getCurrentUserIdOrNull();
+      if (!userId) {
+        resolve();
+        return;
+      }
+
+      const index = store.index('userId');
+      const request = index.openCursor(userId);
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          cursor.delete();
+          cursor.continue();
+        } else {
+          console.log('[StorageV2] All contacts cleared');
+          resolve();
+        }
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
    * Delete contact (soft delete, sends DELETE to sync queue)
    * @param {string} contactId
    * @returns {Promise<boolean>}
