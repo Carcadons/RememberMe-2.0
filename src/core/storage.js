@@ -88,11 +88,16 @@ class StorageV2 {
    * @private
    */
   getCurrentUserId() {
-    const user = window.authService?.getCurrentUser();
-    if (!user || !user.id) {
-      throw new Error('User not authenticated. Cannot perform data operations.');
+    try {
+      const user = window.authService?.getCurrentUser();
+      if (!user || !user.id) {
+        throw new Error('User not authenticated. Cannot perform data operations.');
+      }
+      return user.id;
+    } catch (error) {
+      console.error('[StorageV2] Error getting current user ID:', error);
+      throw error;
     }
-    return user.id;
   }
 
   getCurrentUserIdOrNull() {

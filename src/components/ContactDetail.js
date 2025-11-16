@@ -221,9 +221,13 @@ class ContactDetailModal {
    * Edit contact
    */
   editContact() {
+    const contactToEdit = this.currentContact;
     this.hide();
-    if (window.addContactModal) {
-      window.addContactModal.edit(this.currentContact);
+    if (window.addContactModal && contactToEdit) {
+      window.addContactModal.edit(contactToEdit);
+    } else if (!contactToEdit) {
+      console.error('[ContactDetail] Cannot edit - currentContact is null');
+      window.app.showError('Error loading contact details');
     }
   }
 
