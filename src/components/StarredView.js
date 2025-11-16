@@ -66,9 +66,14 @@ class StarredView {
    * @returns {string}
    */
   renderContactCard(contact) {
-    const initials = this.getInitials(contact.name);
+    // Combine firstName and lastName for display (fallback to name for backwards compatibility)
+    const displayName = contact.firstName && contact.lastName
+      ? `${contact.firstName} ${contact.lastName}`.trim()
+      : (contact.firstName || contact.name || '');
+
+    const initials = this.getInitials(displayName);
     const photoHtml = contact.photo
-      ? `<img src="${contact.photo}" alt="${contact.name}" class="person-photo">`
+      ? `<img src="${contact.photo}" alt="${displayName}" class="person-photo">`
       : `<div class="person-photo">${initials}</div>`;
 
     const quickFacts = contact.quickFacts || [];
@@ -85,7 +90,7 @@ class StarredView {
         <div class="person-header" onclick="window.app.showContactDetail('${contact.id}')">
           ${photoHtml}
           <div class="person-info">
-            <h3>${contact.name}</h3>
+            <h3>${displayName}</h3>
             <p>${contact.title || 'No title'}${contact.company ? ` at ${contact.company}` : ''}</p>
             ${contact.howWeMet ? `<p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">${contact.howWeMet}</p>` : ''}
             ${contact.lastMet ? `<p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Last met: ${this.formatDate(contact.lastMet)}</p>` : ''}

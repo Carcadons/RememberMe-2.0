@@ -8,6 +8,17 @@ class SearchView {
   }
 
   /**
+   * Get display name from contact (combines firstName and lastName, or falls back to name)
+   * @param {Object} contact
+   * @returns {string}
+   */
+  getDisplayName(contact) {
+    return contact.firstName
+      ? (contact.lastName ? `${contact.firstName} ${contact.lastName}` : contact.firstName)
+      : (contact.name || '');
+  }
+
+  /**
    * Initialize search
    */
   init() {
@@ -89,7 +100,8 @@ class SearchView {
       const matches = [];
 
       // Search in name
-      const nameMatch = this.calculateMatchScore(queryLower, contact.name.toLowerCase());
+      const displayName = this.getDisplayName(contact);
+      const nameMatch = this.calculateMatchScore(queryLower, displayName.toLowerCase());
       if (nameMatch > 0) {
         score += nameMatch * 3; // Higher weight for name
         matches.push('name');
@@ -211,7 +223,7 @@ class SearchView {
 
     // Sort contacts alphabetically by name
     const sortedContacts = [...this.allContacts].sort((a, b) =>
-      a.name.localeCompare(b.name)
+      this.getDisplayName(a).localeCompare(this.getDisplayName(b))
     );
 
     const html = `
@@ -266,9 +278,10 @@ class SearchView {
    * @returns {string}
    */
   renderContactCard(contact) {
-    const initials = this.getInitials(contact.name);
+    const displayName = this.getDisplayName(contact);
+    const initials = this.getInitials(displayName);
     const photoHtml = contact.photo
-      ? `<img src="${contact.photo}" alt="${contact.name}" class="person-photo">`
+      ? `<img src="${contact.photo}" alt="${displayName}" class="person-photo">`
       : `<div class="person-photo">${initials}</div>`;
 
     const quickFacts = contact.quickFacts || [];
@@ -278,7 +291,7 @@ class SearchView {
         <div class="person-header">
           ${photoHtml}
           <div class="person-info">
-            <h3>${contact.name}</h3>
+            <h3>${displayName}</h3>
             <p>${contact.title || 'No title'}${contact.company ? ` at ${contact.company}` : ''}</p>
             ${contact.howWeMet ? `<p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">${contact.howWeMet}</p>` : ''}
           </div>

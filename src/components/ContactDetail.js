@@ -111,8 +111,13 @@ class ContactDetailModal {
   render() {
     const contact = this.currentContact;
 
+    // Combine firstName and lastName for display (fallback to name for backwards compatibility)
+    const fullName = contact.firstName && contact.lastName
+      ? `${contact.firstName} ${contact.lastName}`.trim()
+      : (contact.firstName || contact.name || '');
+
     // Header
-    document.getElementById('detailName').textContent = contact.name;
+    document.getElementById('detailName').textContent = fullName;
     document.getElementById('detailTitle').textContent =
       `${contact.title || ''}${contact.title && contact.company ? ' at ' : ''}${contact.company || ''}`;
 
@@ -121,7 +126,7 @@ class ContactDetailModal {
     if (contact.photo) {
       photoContainer.innerHTML = `<img src="${contact.photo}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
     } else {
-      const initials = this.getInitials(contact.name);
+      const initials = this.getInitials(fullName);
       photoContainer.textContent = initials;
     }
 
@@ -262,7 +267,11 @@ class ContactDetailModal {
    * Delete contact
    */
   deleteContact() {
-    if (confirm(`Are you sure you want to delete ${this.currentContact.name}? This cannot be undone.`)) {
+    // Combine firstName and lastName for delete confirmation (fallback to name for backwards compatibility)
+    const fullName = this.currentContact.firstName && this.currentContact.lastName
+      ? `${this.currentContact.firstName} ${this.currentContact.lastName}`.trim()
+      : (this.currentContact.firstName || this.currentContact.name || 'this contact');
+    if (confirm(`Are you sure you want to delete ${fullName}? This cannot be undone.`)) {
       window.storage.deleteContact(this.currentContact.id).then(() => {
         this.hide();
         window.app.showSuccess('Contact deleted');

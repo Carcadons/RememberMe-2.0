@@ -177,8 +177,8 @@ class AddContactModal {
     document.getElementById('saveContact').textContent = 'Update Contact';
 
     // Fill form with contact data
-    // Combine firstName and lastName for the name field
-    const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+    // Combine firstName and lastName for the name field (fallback to name for backwards compatibility)
+    const fullName = contact.firstName || contact.name || '';
     document.getElementById('contactName').value = fullName;
     document.getElementById('contactTitle').value = contact.title || '';
     document.getElementById('contactCompany').value = contact.company || '';
