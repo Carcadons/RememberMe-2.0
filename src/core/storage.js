@@ -1,20 +1,13 @@
-// Local Storage Layer for RememberMe
-// Handles IndexedDB operations with encryption
+// Storage Layer v2 - Offline-first with sync queue
+// Proper IndexedDB schema with sync state tracking
 
-class Storage {
+class StorageV2 {
   constructor() {
-    this.dbName = 'RememberMeDB';
-    this.dbVersion = 1;
+    this.dbName = 'RememberMeDB_v2';
+    this.dbVersion = 2;
     this.db = null;
-    this.encryptionEnabled = false;
-    this.passcode = null;
-    this.encryptionKey = null;
   }
 
-  /**
-   * Initialize the database
-   * @returns {Promise<IDBDatabase>}
-   */
   async init() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.dbVersion);
@@ -22,318 +15,225 @@ class Storage {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('[Storage] Database initialized');
+        console.log('[StorageV2] Database initialized');
         resolve(this.db);
       };
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-        console.log('[Storage] Upgrading database to version', this.dbVersion);
+        console.log(`[StorageV2] Upgrading database to version ${this.dbVersion}`);
 
-        // Create object stores if they don't exist
-        if (!db.objectStoreNames.contains('contacts')) {
-          const contactStore = db.createObjectStore('contacts', { keyPath: 'id' });
-          contactStore.createIndex('name', 'name', { unique: false });
-          contactStore.createIndex('company', 'company', { unique: false });
-          contactStore.createIndex('lastMet', 'lastMet', { unique: false });
-          contactStore.createIndex('starred', 'starred', { unique: false });
-          contactStore.createIndex('userId', 'userId', { unique: false });
-          console.log('[Storage] Created contacts store');
-        }
+        const stores = [
+          {
+            name: 'contacts',
+            keyPath: 'id',
+            indexes: [
+              { name: 'userId', keyPath: 'userId', options: { unique: false } },
+              { name: 'serverId', keyPath: 'serverId', options: { unique: false } },
+              { name: 'syncState', keyPath: 'syncState', options: { unique: false } },
+              { name: 'userLastModified', keyPath: ['userId', 'lastModified'], options: { unique: false } }
+            ]
+          },
+          {
+            name: 'meetings',
+            keyPath: 'id',
+            indexes: [
+              { name: 'userId', keyPath: 'userId', options: { unique: false } },
+              { name: 'contactId', keyPath: 'contactId', options: { unique: false } },
+              { name: 'syncState', keyPath: 'syncState', options: { unique: false } },
+              { name: 'scheduledDate', keyPath: 'scheduledDate', options: { unique: false } }
+            ]
+          },
+          {
+            name: 'syncQueue',
+            keyPath: 'id',
+            indexes: [
+              { name: 'entityType', keyPath: 'entityType', options: { unique: false } },
+              { name: 'userId', keyPath: 'userId', options: { unique: false } },
+              { name: 'status', keyPath: 'status', options: { unique: false } },
+              { name: 'createdAt', keyPath: 'createdAt', options: { unique: false } }
+            ]
+          },
+          {
+            name: 'userData',
+            keyPath: 'userId'
+          }
+        ];
 
-        if (!db.objectStoreNames.contains('meetings')) {
-          const meetingStore = db.createObjectStore('meetings', { keyPath: 'id' });
-          meetingStore.createIndex('date', 'date', { unique: false });
-          meetingStore.createIndex('personId', 'personId', { unique: false });
-          console.log('[Storage] Created meetings store');
-        }
+        for (const storeConfig of stores) {
+          if (!db.objectStoreNames.contains(storeConfig.name)) {
+            const store = db.createObjectStore(storeConfig.name, { keyPath: storeConfig.keyPath });
+            console.log(`[StorageV2] Created store: ${storeConfig.name}`);
 
-        if (!db.objectStoreNames.contains('sync')) {
-          db.createObjectStore('sync', { keyPath: 'id' });
-          console.log('[Storage] Created sync store');
-        }
-
-        if (!db.objectStoreNames.contains('settings')) {
-          db.createObjectStore('settings', { keyPath: 'key' });
-          console.log('[Storage] Created settings store');
+            for (const index of storeConfig.indexes || []) {
+              store.createIndex(index.name, index.keyPath, index.options);
+              console.log(`[StorageV2] Created index: ${storeConfig.name}.${index.name}`);
+            }
+          }
         }
       };
     });
   }
 
-  /**
-   * Enable encryption with passcode
-   * @param {string} passcode - User passcode
-   */
-  async enableEncryption(passcode) {
-    try {
-      this.passcode = passcode;
-      this.encryptionEnabled = true;
-
-      // Store passcode hash for authentication
-      const salt = window.encryption.generateSalt();
-      const hash = await window.encryption.hashPasscode(passcode, salt);
-
-      await this.setSetting('passcodeHash', hash);
-      await this.setSetting('passcodeSalt', window.encryption.arrayBufferToBase64(salt));
-      await this.setSetting('encryptionEnabled', 'true');
-
-      console.log('[Storage] Encryption enabled');
-    } catch (error) {
-      console.error('[Storage] Failed to enable encryption:', error);
-      throw error;
-    }
+  createId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 
   /**
-   * Verify passcode
-   * @param {string} passcode - Passcode to verify
-   * @returns {Promise<boolean>}
+   * Get current user ID (enforces authentication)
+   * @private
    */
-  async verifyPasscode(passcode) {
-    try {
-      const storedHash = await this.getSetting('passcodeHash');
-      const storedSalt = await this.getSetting('passcodeSalt');
-
-      if (!storedHash || !storedSalt) {
-        return false;
-      }
-
-      return await window.encryption.verifyPasscode(passcode, storedHash, storedSalt);
-    } catch (error) {
-      console.error('[Storage] Passcode verification error:', error);
-      return false;
+  getCurrentUserId() {
+    const user = window.authService?.getCurrentUser();
+    if (!user || !user.id) {
+      throw new Error('User not authenticated. Cannot perform data operations.');
     }
+    return user.id;
   }
 
-  /**
-   * Check if encryption is enabled
-   * @returns {Promise<boolean>}
-   */
-  async isEncryptionEnabled() {
-    if (this.encryptionEnabled) return true;
-
-    const enabled = await this.getSetting('encryptionEnabled');
-    this.encryptionEnabled = enabled === 'true';
-    return this.encryptionEnabled;
+  getCurrentUserIdOrNull() {
+    return window.authService?.getCurrentUser()?.id || null;
   }
 
-  /**
-   * Encrypt data if encryption is enabled
-   * @param {Object} data - Data to encrypt
-   * @returns {Promise<Object>} - Encrypted or plain data
-   */
-  async encryptIfEnabled(data) {
-    try {
-      const encryptionEnabled = await this.isEncryptionEnabled();
-      console.log('[Storage] encryptIfEnabled - encryptionEnabled:', encryptionEnabled, 'passcode:', !!this.passcode);
-
-      if (!encryptionEnabled || !this.passcode) {
-        console.log('[Storage] Not encrypting, returning data as-is', data);
-        return data;
-      }
-
-      console.log('[Storage] About to encrypt object with passcode');
-      const encrypted = await window.encryption.encryptObject(data, this.passcode);
-      console.log('[Storage] Encryption successful');
-      return encrypted;
-    } catch (error) {
-      console.error('[Storage] Encryption failed:', error);
-      throw error;
-    }
-  }
+  // ===== CONTACT OPERATIONS =====
 
   /**
-   * Decrypt data if encryption is enabled
-   * @param {Object} data - Data to decrypt
-   * @returns {Promise<Object>} - Decrypted or plain data
+   * Save contact (enforces userId association)
+   * @param {Object} contact
+   * @param {boolean} skipSyncQueue - Don't add to sync queue (default false)
+   * @returns {Promise<string>} Contact ID
    */
-  async decryptIfEnabled(data) {
-    const encryptionEnabled = await this.isEncryptionEnabled();
-
-    if (!encryptionEnabled || !this.passcode) {
-      return data;
-    }
-
-    // Check if data is encrypted (has encrypted field)
-    if (!data.encrypted) {
-      return data;
-    }
-
-    try {
-      return await window.encryption.decryptObject(data, this.passcode);
-    } catch (error) {
-      console.error('[Storage] Decryption failed:', error);
-      throw error;
-    }
-  }
-
-  // === CONTACT OPERATIONS ===
-
-  /**
-   * Add or update a contact
-   * @param {Object} contact - Contact data
-   * @param {boolean} skipSync - Skip auto-sync (default false)
-   * @returns {Promise<string>} - Contact ID
-   */
-  async saveContact(contact, skipSync = false) {
-    console.log('[Storage] saveContact called with:', contact, 'skipSync:', skipSync);
-
-    try {
-      if (!this.db) {
-        console.log('[Storage] Db not initialized, calling init...');
-        await this.init();
-      }
-
-      const contactId = contact.id || window.encryption.generateId();
-      console.log('[Storage] Generated contact ID:', contactId);
-
-      const now = new Date().toISOString();
-
-      // Get current user ID if available
-      let userId = null;
-      if (window.authService && window.authService.checkAuth() && window.authService.getCurrentUser()) {
-        userId = window.authService.getCurrentUser().id;
-        console.log('[Storage] Adding userId to contact:', userId);
-      }
-
-      const contactData = {
-        ...contact,
-        id: contactId,
-        userId: userId || contact.userId,
-        createdAt: contact.createdAt || now,
-        updatedAt: now,
-        synced: false
-      };
-
-      console.log('[Storage] Contact data prepared:', contactData);
-
-      // Encrypt if enabled
-      console.log('[Storage] About to encrypt (if enabled)...');
-      const dataToStore = await this.encryptIfEnabled(contactData);
-      console.log('[Storage] Data encrypted (or not), about to save to IndexedDB...');
-
-      return new Promise((resolve, reject) => {
-        console.log('[Storage] Creating transaction...');
-        const transaction = this.db.transaction(['contacts'], 'readwrite');
-        const store = transaction.objectStore('contacts');
-        console.log('[Storage] About to call store.put...');
-        const request = store.put(dataToStore);
-
-        request.onsuccess = async () => {
-          console.log('[Storage] Contact saved successfully:', contactId);
-
-          // Auto-sync to server if user is logged in and skipSync is false
-          if (!skipSync) {
-            try {
-              console.log('[Storage] Checking auto-sync conditions...');
-              console.log('[Storage] authService exists:', !!window.authService);
-              if (window.authService) {
-                console.log('[Storage] isAuthenticated:', window.authService.isAuthenticated);
-                console.log('[Storage] token:', window.authService.token);
-                console.log('[Storage] current user:', window.authService.getCurrentUser());
-              }
-              console.log('[Storage] syncService exists:', !!window.syncService);
-
-              if (window.authService && window.authService.isAuthenticated && window.syncService) {
-                const user = window.authService.getCurrentUser();
-                console.log('[Storage] User for sync:', user);
-                if (user && user.id) {
-                  console.log('[Storage] Auto-syncing contact to server...');
-                  const result = await window.syncService.syncToServer();
-                  console.log('[Storage] Auto-sync result:', result);
-                } else {
-                  console.log('[Storage] Cannot auto-sync: no user ID');
-                }
-              } else {
-                console.log('[Storage] Auto-sync conditions not met');
-              }
-            } catch (syncError) {
-              console.warn('[Storage] Auto-sync failed:', syncError);
-              // Don't reject the save just because sync failed
-            }
-          } else {
-            console.log('[Storage] Skipping auto-sync as requested');
-          }
-
-          resolve(contactId);
-        };
-
-        request.onerror = () => {
-          console.error('[Storage] Error saving contact:', request.error);
-          reject(request.error);
-        };
-      });
-    } catch (error) {
-      console.error('[Storage] Exception in saveContact:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get a contact by ID
-   * @param {string} id - Contact ID
-   * @returns {Promise<Object>}
-   */
-  async getContact(id) {
+  async saveContact(contact, skipSyncQueue = false) {
     if (!this.db) await this.init();
 
+    const userId = this.getCurrentUserId();
+    const now = new Date().toISOString();
+
+    // Validate required fields
+    if (!contact.firstName) {
+      throw new Error('Contact must have firstName');
+    }
+
+    const contactId = contact.id || this.createId();
+
+    const contactData = {
+      id: contactId,
+      serverId: contact.serverId || null,
+      userId: userId,
+      firstName: contact.firstName,
+      lastName: contact.lastName || '',
+      company: contact.company || '',
+      jobTitle: contact.jobTitle || '',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      notes: contact.notes || '',
+      lastMetDate: contact.lastMetDate || null,
+      howWeMet: contact.howWeMet || '',
+      location: contact.location || '',
+      tags: contact.tags || [],
+      quickFacts: contact.quickFacts || [],
+      lastModified: now,
+      lastSynced: contact.lastSynced || null,
+      syncState: contact.syncState || 'pending',
+      serverVersion: contact.serverVersion || 0
+    };
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['contacts'], 'readonly');
+      const transaction = this.db.transaction(['contacts'], 'readwrite');
       const store = transaction.objectStore('contacts');
-      const request = store.get(id);
+      const request = store.put(contactData);
 
       request.onsuccess = async () => {
-        if (request.result) {
-          const decrypted = await this.decryptIfEnabled(request.result);
-          resolve(decrypted);
-        } else {
-          resolve(null);
+        console.log(`[StorageV2] Contact saved: ${contactId}`);
+
+        // Add to sync queue
+        if (!skipSyncQueue) {
+          await this.addToSyncQueue('contact', contactData.serverId ? 'UPDATE' : 'CREATE', {
+            id: contactId,
+            serverId: contactData.serverId,
+            firstName: contactData.firstName,
+            lastName: contactData.lastName,
+            company: contactData.company,
+            jobTitle: contactData.jobTitle,
+            email: contactData.email,
+            phone: contactData.phone,
+            notes: contactData.notes,
+            lastMetDate: contactData.lastMetDate,
+            howWeMet: contactData.howWeMet,
+            location: contactData.location,
+            tags: contactData.tags,
+            quickFacts: contactData.quickFacts,
+            serverVersion: contactData.serverVersion
+          });
+          console.log('[StorageV2] Contact added to sync queue');
         }
+
+        resolve(contactId);
       };
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        console.error('[StorageV2] Error saving contact:', request.error);
+        reject(request.error);
+      };
     });
   }
 
   /**
-   * Get all contacts
+   * Get all contacts for CURRENT USER ONLY (enforces authentication)
    * @returns {Promise<Array>}
    */
   async getAllContacts() {
     if (!this.db) await this.init();
 
-    // Get current userId if authenticated
-    let currentUserId = null;
-    if (window.authService && window.authService.checkAuth() && window.authService.getCurrentUser()) {
-      currentUserId = window.authService.getCurrentUser().id;
-      console.log('[Storage] Filtering contacts for user:', currentUserId);
-    } else {
-      console.log('[Storage] No user authenticated, returning empty contacts');
-      return [];
-    }
+    const userId = this.getCurrentUserId();
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['contacts'], 'readonly');
       const store = transaction.objectStore('contacts');
-      const request = store.getAll();
+      const index = store.index('userId');
+      const request = index.getAll(userId);
 
-      request.onsuccess = async () => {
-        console.log('[Storage] getAllContacts - raw results from IndexedDB:', request.result.length, 'contacts');
-        const contacts = [];
-        for (const contact of request.result) {
-          try {
-            const decrypted = await this.decryptIfEnabled(contact);
-            // Only return contacts for current user (or unowned contacts for backwards compatibility)
-            if (!decrypted.userId || decrypted.userId === currentUserId) {
-              contacts.push(decrypted);
-            }
-          } catch (error) {
-            console.error('[Storage] Failed to decrypt contact:', error);
-          }
+      request.onsuccess = () => {
+        console.log(`[StorageV2] Retrieved ${request.result.length} contacts for user ${userId}`);
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        console.error('[StorageV2] Error getting contacts:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
+   * Get contact by ID
+   * @param {string} contactId
+   * @returns {Promise<Object|null>}
+   */
+  async getContact(contactId) {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['contacts'], 'readonly');
+      const store = transaction.objectStore('contacts');
+      const request = store.get(contactId);
+
+      request.onsuccess = () => {
+        const contact = request.result;
+
+        // Verify user owns this contact
+        const currentUserId = this.getCurrentUserIdOrNull();
+        if (contact && currentUserId && contact.userId !== currentUserId) {
+          console.warn('[StorageV2] SECURITY: Contact userId mismatch');
+          resolve(null);
+          return;
         }
-        console.log('[Storage] getAllContacts - returning', contacts.length, 'filtered contacts');
-        resolve(contacts);
+
+        resolve(contact || null);
       };
 
       request.onerror = () => reject(request.error);
@@ -341,170 +241,242 @@ class Storage {
   }
 
   /**
-   * Search contacts
-   * @param {string} query - Search query
-   * @returns {Promise<Array>}
+   * Delete contact (soft delete, sends DELETE to sync queue)
+   * @param {string} contactId
+   * @returns {Promise<boolean>}
    */
-  async searchContacts(query) {
-    const contacts = await this.getAllContacts();
+  async deleteContact(contactId) {
+    if (!this.db) await this.init();
 
-    if (!query) return contacts;
+    const contact = await this.getContact(contactId);
+    if (!contact) {
+      throw new Error('Contact not found');
+    }
 
-    const lowerQuery = query.toLowerCase();
-    return contacts.filter(contact => {
-      return (
-        contact.name?.toLowerCase().includes(lowerQuery) ||
-        contact.company?.toLowerCase().includes(lowerQuery) ||
-        contact.tags?.some(tag => tag.toLowerCase().includes(lowerQuery)) ||
-        contact.quickFacts?.some(fact => fact.toLowerCase().includes(lowerQuery))
-      );
+        // Verify user owns this contact
+    const userId = this.getCurrentUserId();
+    if (contact.userId !== userId) {
+      throw new Error('Cannot delete contact: access denied');
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['contacts', 'syncQueue'], 'readwrite');
+      const contactStore = transaction.objectStore('contacts');
+      const syncQueueStore = transaction.objectStore('syncQueue');
+
+      // Mark as deleted
+      contact.deletedAt = new Date().toISOString();
+      contact.syncState = 'pending';
+      contact.lastModified = new Date().toISOString();
+
+      const updateRequest = contactStore.put(contact);
+
+      updateRequest.onsuccess = async () => {
+        // Add DELETE to sync queue
+        const syncRequest = syncQueueStore.add({
+          id: this.createId(),
+          entityType: 'contact',
+          action: 'DELETE',
+          entityId: contactId,
+          entityData: { serverId: contact.serverId },
+          userId: userId,
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+          attempts: 0
+        });
+
+        syncRequest.onsuccess = () => {
+          console.log('[StorageV2] Contact marked as deleted and added to sync queue');
+          resolve(true);
+        };
+
+        syncRequest.onerror = () => reject(syncRequest.error);
+      };
+
+      updateRequest.onerror = () => reject(updateRequest.error);
     });
   }
 
   /**
-   * Delete a contact
-   * @param {string} id - Contact ID
+   * Clear ALL local data for current user (logout cleanup)
    * @returns {Promise<void>}
    */
-  async deleteContact(id) {
+  async clearAllData() {
     if (!this.db) await this.init();
 
+    const userId = this.getCurrentUserId();
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['contacts'], 'readwrite');
-      const store = transaction.objectStore('contacts');
-      const request = store.delete(id);
+      const transaction = this.db.transaction(['contacts', 'syncQueue', 'userData'], 'readwrite');
 
-      request.onsuccess = () => {
-        console.log('[Storage] Contact deleted:', id);
+      const promises = [];
+
+      // Clear contacts
+      promises.push(new Promise((res, rej) => {
+        const store = transaction.objectStore('contacts');
+        const index = store.index('userId');
+        const request = index.openCursor(IDBKeyRange.only(userId));
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+          } else {
+            res();
+          }
+        };
+        request.onerror = () => rej(request.error);
+      }));
+
+      // Clear sync queue
+      promises.push(new Promise((res, rej) => {
+        const store = transaction.objectStore('syncQueue');
+        const index = store.index('userId');
+        const request = index.openCursor(IDBKeyRange.only(userId));
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+          } else {
+            res();
+          }
+        };
+        request.onerror = () => rej(request.error);
+      }));
+
+      Promise.all(promises).then(() => {
+        console.log('[StorageV2] All data cleared for user', userId);
         resolve();
-      };
-
-      request.onerror = () => reject(request.error);
+      }).catch(reject);
     });
   }
 
-  // === MEETING OPERATIONS ===
+  // ===== SYNC QUEUE OPERATIONS =====
 
   /**
-   * Save a meeting
-   * @param {Object} meeting - Meeting data
+   * Add item to sync queue
+   * @private
    */
-  async saveMeeting(meeting) {
-    if (!this.db) await this.init();
+  async addToSyncQueue(entityType, action, entityData) {
+    const userId = this.getCurrentUserId();
 
-    const meetingId = meeting.id || window.encryption.generateId();
-    const now = new Date().toISOString();
-
-    const meetingData = {
-      ...meeting,
-      id: meetingId,
-      createdAt: meeting.createdAt || now,
-      updatedAt: now,
-      synced: false
+    const queueItem = {
+      id: this.createId(),
+      entityType: entityType,
+      action: action,
+      entityId: entityData.id || this.createId(),
+      entityData: entityData,
+      userId: userId,
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+      attempts: 0,
+      maxAttempts: 3,
+      error: null
     };
 
-    const dataToStore = await this.encryptIfEnabled(meetingData);
-
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['meetings'], 'readwrite');
-      const store = transaction.objectStore('meetings');
-      const request = store.put(dataToStore);
+      const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+      const store = transaction.objectStore('syncQueue');
+      const request = store.add(queueItem);
 
       request.onsuccess = () => {
-        console.log('[Storage] Meeting saved:', meetingId);
-        resolve(meetingId);
+        console.log(`[StorageV2] Added to sync queue: ${entityType} ${action}`);
+        resolve(queueItem.id);
       };
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        console.error('[StorageV2] Error adding to sync queue:', request.error);
+        reject(request.error);
+      };
     });
   }
 
   /**
-   * Get meetings for today
+   * Get all pending sync queue items for current user
    * @returns {Promise<Array>}
    */
-  async getTodaysMeetings() {
-    const allMeetings = await this.getAllMeetings();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return allMeetings.filter(meeting => {
-      const meetingDate = new Date(meeting.date);
-      return meetingDate >= today && meetingDate < tomorrow;
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
-  }
-
-  /**
-   * Get a meeting by ID
-   * @param {string} id - Meeting ID
-   * @returns {Promise<Object>}
-   */
-  async getMeeting(id) {
+  async getPendingSyncItems() {
     if (!this.db) await this.init();
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['meetings'], 'readonly');
-      const store = transaction.objectStore('meetings');
-      const request = store.get(id);
-
-      request.onsuccess = async () => {
-        if (request.result) {
-          const decrypted = await this.decryptIfEnabled(request.result);
-          resolve(decrypted);
-        } else {
-          resolve(null);
-        }
-      };
-
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Get all meetings
-   * @returns {Promise<Array>}
-   */
-  async getAllMeetings() {
-    if (!this.db) await this.init();
+    const userId = this.getCurrentUserId();
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['meetings'], 'readonly');
-      const store = transaction.objectStore('meetings');
-      const request = store.getAll();
+      const transaction = this.db.transaction(['syncQueue'], 'readonly');
+      const store = transaction.objectStore('syncQueue');
+      const index = store.index('userId');
+      const request = index.openCursor(IDBKeyRange.only(userId));
 
-      request.onsuccess = async () => {
-        const meetings = [];
-        for (const meeting of request.result) {
-          try {
-            const decrypted = await this.decryptIfEnabled(meeting);
-            meetings.push(decrypted);
-          } catch (error) {
-            console.error('[Storage] Failed to decrypt meeting:', error);
+      const items = [];
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          if (cursor.value.status === 'pending' || cursor.value.status === 'retry') {
+            items.push(cursor.value);
           }
+          cursor.continue();
+        } else {
+          resolve(items);
         }
-        resolve(meetings);
       };
 
       request.onerror = () => reject(request.error);
     });
   }
 
-  // === SETTINGS OPERATIONS ===
-
   /**
-   * Set a setting
-   * @param {string} key - Setting key
-   * @param {string} value - Setting value
+   * Update sync queue item status
+   * @param {string} itemId
+   * @param {string} status
+   * @param {string} error
+   * @returns {Promise<void>}
    */
-  async setSetting(key, value) {
+  async updateSyncItem(itemId, status, error = null) {
     if (!this.db) await this.init();
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['settings'], 'readwrite');
-      const store = transaction.objectStore('settings');
-      const request = store.put({ key, value });
+      const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+      const store = transaction.objectStore('syncQueue');
+      const request = store.get(itemId);
+
+      request.onsuccess = () => {
+        const item = request.result;
+        if (!item) {
+          reject(new Error('Sync item not found'));
+          return;
+        }
+
+        item.status = status;
+        item.error = error;
+
+        if (status === 'retry') {
+          item.attempts = (item.attempts || 0) + 1;
+        }
+
+        const updateRequest = store.put(item);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * Remove sync queue item (after successful sync or permanent failure)
+   * @param {string} itemId
+   * @returns {Promise<void>}
+   */
+  async removeSyncItem(itemId) {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+      const store = transaction.objectStore('syncQueue');
+      const request = store.delete(itemId);
 
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
@@ -512,82 +484,37 @@ class Storage {
   }
 
   /**
-   * Get a setting
-   * @param {string} key - Setting key
+   * Mark contact as synced (updates serverId and syncState)
+   * @param {string} contactId
+   * @param {Object} serverData
+   * @returns {Promise<void>}
    */
-  async getSetting(key) {
+  async markContactSynced(contactId, serverData) {
     if (!this.db) await this.init();
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(['settings'], 'readonly');
-      const store = transaction.objectStore('settings');
-      const request = store.get(key);
-
-      request.onsuccess = () => resolve(request.result?.value || null);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * Get unsynced items for sync
-   * @param {string} storeName - Store name
-   * @returns {Promise<Array>}
-   */
-  async getUnsynced(storeName) {
-    const allItems = storeName === 'contacts'
-      ? await this.getAllContacts()
-      : await this.getAllMeetings();
-
-    return allItems.filter(item => !item.synced);
-  }
-
-  /**
-   * Mark item as synced
-   * @param {string} storeName - Store name
-   * @param {string} id - Item ID
-   */
-  async markAsSynced(storeName, id) {
-    if (!this.db) await this.init();
-
-    const item = storeName === 'contacts'
-      ? await this.getContact(id)
-      : await this.getMeeting(id);
-
-    if (!item) return;
-
-    item.synced = true;
-    item.syncedAt = new Date().toISOString();
-
-    if (storeName === 'contacts') {
-      await this.saveContact(item);
-    } else {
-      await this.saveMeeting(item);
+    const contact = await this.getContact(contactId);
+    if (!contact) {
+      throw new Error('Contact not found');
     }
-  }
 
-  /**
-   * Clear all contacts (for logout)
-   */
-  async clearAllContacts() {
-    if (!this.db) await this.init();
+    contact.serverId = serverData.id;
+    contact.serverVersion = serverData.version || 1;
+    contact.lastSynced = new Date().toISOString();
+    contact.syncState = 'synced';
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['contacts'], 'readwrite');
       const store = transaction.objectStore('contacts');
-      const request = store.clear();
+      const request = store.put(contact);
 
       request.onsuccess = () => {
-        console.log('[Storage] All contacts cleared');
+        console.log(`[StorageV2] Contact marked as synced: ${contactId}`);
         resolve();
       };
 
-      request.onerror = () => {
-        console.error('[Storage] Error clearing contacts:', request.error);
-        reject(request.error);
-      };
+      request.onerror = () => reject(request.error);
     });
   }
 }
 
-// Export singleton instance
-window.storage = new Storage();
+window.storageV2 = new StorageV2();

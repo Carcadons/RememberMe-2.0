@@ -1,9 +1,9 @@
-// RememberMe Server - PostgreSQL Backend
-// Handles API endpoints for sync, push notifications, and authentication
+// RememberMe Server v2 - PostgreSQL Backend with Relational Schema
+// Complete rewrite with proper user isolation and sync
 
-console.log('[Server] ====== RememberMe Server Starting ======');
-console.log('[Server] Environment:', process.env.NODE_ENV || 'development');
-console.log('[Server] Database URL configured:', !!process.env.DATABASE_URL);
+console.log('[ServerV2] ====== RememberMe Server v2 Starting ======');
+console.log('[ServerV2] Environment:', process.env.NODE_ENV || 'development');
+console.log('[ServerV2] Database URL configured:', !!process.env.DATABASE_URL);
 
 const express = require('express');
 const bcrypt = require('bcryptjs');
@@ -11,7 +11,8 @@ const crypto = require('crypto');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-const database = require('./database');
+const db = require('./database-v2');
+const syncRoutes = require('./sync-endpoints-v2');
 
 // Initialize Express app
 const app = express();
@@ -27,69 +28,263 @@ app.use(express.static(projectRoot + '/public'));
 app.use('/src', express.static(projectRoot + '/src'));
 
 // Initialize database connection
-database.init().then(() => {
-  console.log('[Server] Database ready');
+db.init().then(() => {
+  console.log('[ServerV2] Database v2 initialized successfully');
   startServer();
 }).catch(err => {
-  console.error('[Server] Database initialization failed:', err.message);
-  console.log('[Server] Starting without database...');
-  startServer();
+  console.error('[ServerV2] Database initialization failed:', err.message);
+  console.error('[ServerV2] Server cannot start without database');
+  process.exit(1);
 });
 
 function startServer() {
+
   // === HEALTH CHECK ===
-  app.get('/api', (req, res) => {
+  app.get('/api/v2', (req, res) => {
     res.json({
-      name: 'RememberMe API',
+      name: 'RememberMe API v2',
       version: '2.0.0',
       status: 'operational',
-      database: 'PostgreSQL',
+      database: 'PostgreSQL v2 (Relational)',
       features: {
-        sync: true,
+        sync: 'batch sync with queue',
         sharing: true,
-        auth: true,
-        push: false // Can be added with web push service
+        auth: 'session-based',
+        push: false,
+        audit: true,
+        userIsolation: true
       }
     });
   });
 
-  // === AUTH ENDPOINTS ===
+  // === MOUNT SYNC ROUTES ===
+  // All sync endpoints under /api/v2
+  app.use('/api/v2', syncRoutes);
+
+  // === AUTH ENDPOINTS (v2) ===
+
+  // Health check for auth
+  app.get('/api/v2/auth', (req, res) => {
+    res.json({ status: 'auth endpoints ready', version: 'v2' });
+  });
 
   // Register new user
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/v2/auth/register', async (req, res) => {
     try {
       const { email, password, name } = req.body;
 
+      // Validation
       if (!email || !password || !name) {
-        return res.status(400).json({ error: 'Email, password, and name required' });
+        return res.status(400).json({
+          success: false,
+          error: 'Email, password, and name required'
+        });
       }
 
-      // Use bcrypt for password hashing
+      if (password.length < 8) {
+        return res.status(400).json({
+          success: false,
+          error: 'Password must be at least 8 characters'
+        });
+      }
+
+      // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const user = await database.createUser(email, hashedPassword, name);
+      // Create user
+      const user = await db.createUser(email, hashedPassword, name);
 
+      // Create session
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
+      expiresAt.setDate(expiresAt.getDate() + 30);
 
-      const session = await database.createSession(user.id, token, expiresAt);
+      const session = await db.createSession(user.id, token, expiresAt, {
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
+      });
+
+      console.log(`[ServerV2] User registered: ${user.email}`);
 
       res.json({
         success: true,
-        user: { id: user.id, email: user.email, name: user.name },
-        token: session.token
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          createdAt: user.created_at
+        },
+        token: session.token,
+        syncState: null // New user, no sync state yet
       });
+
     } catch (error) {
-      console.error('[Server] Registration error:', error);
-      res.status(error.message === 'User already exists' ? 409 : 500).json({
-        error: error.message || 'Registration failed'
+      console.error('[ServerV2] Registration error:', error);
+
+      if (error.message === 'User already exists') {
+        return res.status(409).json({
+          success: false,
+          error: 'Email already registered'
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: 'Registration failed'
       });
     }
   });
 
   // Login user
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/v2/auth/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email and password required'
+        });
+      }
+
+      // Get user
+      const user = await db.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials'
+        });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      if (!isValidPassword) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials'
+        });
+      }
+
+      // Create session
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      const session = await db.createSession(user.id, token, expiresAt, {
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
+      });
+
+      // Get sync state
+      const syncState = await db.getSyncState(user.id);
+
+      console.log(`[ServerV2] User logged in: ${user.email}`);
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          createdAt: user.created_at
+        },
+        token: session.token,
+        syncState: syncState
+      });
+
+    } catch (error) {
+      console.error('[ServerV2] Login error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Login failed'
+      });
+    }
+  });
+
+  // Verify session
+  app.post('/api/v2/auth/verify', async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          error: 'Token required'
+        });
+      }
+
+      const session = await db.getSession(token);
+      if (!session) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid or expired session'
+        });
+      }
+
+      // Get user
+      const user = await db.getUserById(session.user_id);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+
+      // Get sync state
+      const syncState = await db.getSyncState(user.id);
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        },
+        syncState: syncState
+      });
+
+    } catch (error) {
+      console.error('[ServerV2] Verify error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Verification failed'
+      });
+    }
+  });
+
+  // Logout
+  app.post('/api/v2/auth/logout', async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (token) {
+        const deleted = await db.deleteSession(token);
+        if (deleted) {
+          console.log('[ServerV2] Session deleted');
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Logged out successfully'
+      });
+
+    } catch (error) {
+      console.error('[ServerV2] Logout error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Logout failed'
+      });
+    }
+  });
+
+  // === MIGRATION ENDPOINTS (temporary for migration) ===
+
+  /**
+   * POST /api/v2/migrate/user
+   * For migrating existing users from old system
+   */
+  app.post('/api/v2/migrate/user', async (req, res) => {
     try {
       const { email, password } = req.body;
 
@@ -97,227 +292,21 @@ function startServer() {
         return res.status(400).json({ error: 'Email and password required' });
       }
 
-      const user = await database.getUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
+      // Hash password (use same algorithm as old system)
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-
-      // Generate session token
-      const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
-
-      const session = await database.createSession(user.id, token, expiresAt);
-
-      res.json({
-        success: true,
-        user: { id: user.id, email: user.email, name: user.name },
-        token: session.token
-      });
-    } catch (error) {
-      console.error('[Server] Login error:', error);
-      res.status(500).json({ error: 'Login failed' });
-    }
-  });
-
-  // Verify session
-  app.post('/api/auth/verify', async (req, res) => {
-    try {
-      const { token } = req.body;
-
-      if (!token) {
-        return res.status(400).json({ error: 'Token required' });
-      }
-
-      const session = await database.getSession(token);
-
-      if (!session) {
-        return res.status(401).json({ error: 'Invalid or expired session' });
-      }
-
-      // Get user info
-      const user = await database.getUserById(session.user_id);
-
-      res.json({
-        success: true,
-        user: { id: user.id, email: user.email, name: user.name }
-      });
-    } catch (error) {
-      console.error('[Server] Verify error:', error);
-      res.status(500).json({ error: 'Verification failed' });
-    }
-  });
-
-  // Logout
-  app.post('/api/auth/logout', async (req, res) => {
-    try {
-      const { token } = req.body;
-
-      if (token) {
-        await database.deleteSession(token);
+      // Create user (will fail if already exists, which is fine)
+      try {
+        await db.createUser(email, hashedPassword, email.split('@')[0]);
+      } catch (err) {
+        // User might already exist, continue
       }
 
       res.json({ success: true });
+
     } catch (error) {
-      console.error('[Server] Logout error:', error);
-      res.status(500).json({ error: 'Logout failed' });
-    }
-  });
-
-  // === CONTACTS / SYNC ENDPOINTS ===
-
-  // Get all contacts for user
-  app.get('/api/contacts', async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-
-      if (!token) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const session = await database.getSession(token);
-      if (!session) {
-        return res.status(401).json({ error: 'Invalid session' });
-      }
-
-      const contacts = await database.getContacts(session.user_id);
-
-      res.json({
-        success: true,
-        contacts: contacts.map(c => ({
-          id: c.id,
-          ...c.data,
-          createdAt: c.created_at,
-          updatedAt: c.updated_at
-        }))
-      });
-    } catch (error) {
-      console.error('[Server] Get contacts error:', error);
-      res.status(500).json({ error: 'Failed to get contacts' });
-    }
-  });
-
-  // Sync contacts to server (client sends all contacts)
-  app.post('/api/contacts/sync', async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-      const { contacts } = req.body;
-
-      if (!token) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      if (!contacts || !Array.isArray(contacts)) {
-        return res.status(400).json({ error: 'Contacts array required' });
-      }
-
-      const session = await database.getSession(token);
-      if (!session) {
-        return res.status(401).json({ error: 'Invalid session' });
-      }
-
-      const userId = session.user_id;
-      let synced = 0;
-
-      // For each contact from client, create or update
-      for (const contact of contacts) {
-        try {
-          const existingContact = await database.getContact(contact.id, userId);
-
-          if (existingContact) {
-            // Update existing contact if it's newer
-            if (new Date(contact.updatedAt) > new Date(existingContact.updated_at)) {
-              await database.updateContact(contact.id, userId, contact);
-            }
-          } else {
-            // Create new contact
-            await database.createContact(userId, contact);
-          }
-          synced++;
-        } catch (err) {
-          console.warn('[Server] Failed to sync contact:', contact.id, err);
-        }
-      }
-
-      const allContacts = await database.getContacts(userId);
-
-      res.json({
-        success: true,
-        synced,
-        contacts: allContacts.map(c => ({
-          id: c.id,
-          ...c.data,
-          createdAt: c.created_at,
-          updatedAt: c.updated_at
-        }))
-      });
-    } catch (error) {
-      console.error('[Server] Sync contacts error:', error);
-      res.status(500).json({ error: 'Sync failed' });
-    }
-  });
-
-  // === MEETINGS ENDPOINTS ===
-
-  // Create meeting
-  app.post('/api/meetings', async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-
-      if (!token) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const session = await database.getSession(token);
-      if (!session) {
-        return res.status(401).json({ error: 'Invalid session' });
-      }
-
-      const meetingData = {
-        ...req.body,
-        userId: session.user_id
-      };
-
-      const meeting = await database.createMeeting(meetingData);
-
-      res.json({
-        success: true,
-        meeting
-      });
-    } catch (error) {
-      console.error('[Server] Create meeting error:', error);
-      res.status(500).json({ error: 'Failed to create meeting' });
-    }
-  });
-
-  // Get meetings for today
-  app.get('/api/meetings/today', async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-
-      if (!token) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      const session = await database.getSession(token);
-      if (!session) {
-        return res.status(401).json({ error: 'Invalid session' });
-      }
-
-      const meetings = await database.getTodaysMeetings(session.user_id);
-
-      res.json({
-        success: true,
-        meetings
-      });
-    } catch (error) {
-      console.error('[Server] Get today\'s meetings error:', error);
-      res.status(500).json({ error: 'Failed to get meetings' });
+      console.error('[ServerV2] User migration error:', error);
+      res.status(500).json({ error: 'Migration failed' });
     }
   });
 
@@ -325,9 +314,25 @@ function startServer() {
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => {
-    console.log('[Server] ====== SERVER RUNNING ======');
-    console.log(`[Server] Port: ${PORT}`);
-    console.log('[Server] Database: PostgreSQL');
-    console.log('[Server] Ready to serve requests');
+    console.log('[ServerV2] ====== SERVER RUNNING ======');
+    console.log(`[ServerV2] Port: ${PORT}`);
+    console.log(`[ServerV2] Database: PostgreSQL v2 (Relational)`);
+    console.log(`[ServerV2] API Version: v2`);
+    console.log('[ServerV2] Features:');
+    console.log('  - User isolation: ✓');
+    console.log('  - Relational schema: ✓');
+    console.log('  - Batch sync: ✓');
+    console.log('  - Conflict resolution: ✓');
+    console.log('  - Audit logging: ✓');
+    console.log('[ServerV2] Ready to serve requests');
   });
 }
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('[ServerV2] SIGTERM received, shutting down gracefully');
+  if (db.pool) {
+    db.pool.end();
+  }
+  process.exit(0);
+});

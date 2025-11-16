@@ -1,100 +1,36 @@
-// Sync Service - Synchronizes contacts with Replit Database
+// Sync Service v2 - Uses batch sync API and sync queue
 class SyncService {
   constructor() {
     this.apiUrl = this.getApiUrl();
     this.isSyncing = false;
-    this.lastSyncTime = localStorage.getItem('rememberme_lastSync') || null;
   }
 
   getApiUrl() {
-    // For Replit deployment
     if (window.location.hostname.includes('repl.co') || window.location.hostname.includes('replit.app')) {
       return '';
     }
-    // For local development
     return window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
   }
 
   /**
-   * Get full user data with contacts from server
-   * @param {string} userId
+   * Get full user data with contacts from server (v2 API)
    */
-  async syncFromServer(userId) {
+  async syncFromServer() {
     if (this.isSyncing) return { success: false, error: 'Already syncing' };
 
-    console.log('[Sync] Starting sync FROM server for user:', userId);
+    console.log('[SyncV2] Starting sync FROM server');
     this.isSyncing = true;
 
     try {
-      // Get contacts from server
-      const response = await fetch(
-        `${this.apiUrl}/api/sync/contacts?userId=${userId}${this.lastSyncTime ? `&since=${this.lastSyncTime}` : ''}`
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Sync failed');
+      const token = window.authService.token;
+      if (!token) {
+        throw new Error('Not authenticated');
       }
 
-      console.log(`[Sync] Received ${data.contacts.length} contacts from server`);
-
-      if (data.contacts.length > 0) {
-        // Clear local data and replace with server data
-        await window.storage.clearAllContacts();
-
-        // Save server contacts locally
-        for (const contact of data.contacts) {
-          await window.storage.saveContact(contact, false); // false = don't sync back
-        }
-
-        console.log('[Sync] Local database updated with server data');
-      }
-
-      // Update last sync time
-      this.lastSyncTime = new Date().toISOString();
-      localStorage.setItem('rememberme_lastSync', this.lastSyncTime);
-
-      this.isSyncing = false;
-      return { success: true, contacts: data.contacts };
-
-    } catch (error) {
-      console.error('[Sync] Sync from server error:', error);
-      this.isSyncing = false;
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Push local contacts to server
-   * @param {string} userId
-   */
-  async syncToServer(userId) {
-    if (this.isSyncing) return { success: false, error: 'Already syncing' };
-
-    console.log('[Sync] Starting sync TO server for user:', userId);
-    this.isSyncing = true;
-
-    try {
-      // Get all local contacts
-      const localContacts = await window.storage.getAllContacts();
-      console.log(`[Sync] Preparing to sync ${localContacts.length} contacts to server`);
-
-      if (localContacts.length === 0) {
-        this.isSyncing = false;
-        return { success: true, synced: 0 };
-      }
-
-      // Send to server
-      const response = await fetch(`${this.apiUrl}/api/sync/contacts`, {
-        method: 'POST',
+      const response = await fetch(`${this.apiUrl}/api/v2/contacts`, {
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          contacts: localContacts
-        })
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       const data = await response.json();
@@ -103,59 +39,130 @@ class SyncService {
         throw new Error(data.error || 'Sync failed');
       }
 
-      console.log(`[Sync] Successfully synced ${data.synced} contacts to server`);
+      console.log(`[SyncV2] Received ${data.contacts.length} contacts from server`);
 
-      // Mark local contacts as synced
-      console.log('[Sync] Marking local contacts as synced...');
-      for (const contact of localContacts) {
-        try {
-          await window.storage.markAsSynced('contacts', contact.id);
-        } catch (error) {
-          console.warn('[Sync] Failed to mark contact as synced:', contact.id, error);
+      if (data.contacts.length > 0) {
+        for (const contact of data.contacts) {
+          await window.storage.saveContact(contact, true);
         }
+        console.log('[SyncV2] Local database updated with server data');
       }
 
-      // Update last sync time
-      this.lastSyncTime = new Date().toISOString();
-      localStorage.setItem('rememberme_lastSync', this.lastSyncTime);
-
       this.isSyncing = false;
-      return { success: true, synced: data.synced };
+      return { success: true, contacts: data.contacts };
 
     } catch (error) {
-      console.error('[Sync] Sync to server error:', error);
+      console.error('[SyncV2] Sync from server error:', error);
       this.isSyncing = false;
       return { success: false, error: error.message };
     }
   }
 
   /**
-   * Full two-way sync (bi-directional)
-   * Server is the source of truth
-   * @param {string} userId
+   * Push local sync queue to server (v2 batch sync API)
    */
-  async syncFull(userId) {
-    if (this.isSyncing) return { success: false, error: 'Already syncing' };
+  async syncToServer() {
+    if (this.isSyncing) {
+      console.warn('[SyncV2] Already syncing, skipping');
+      return { success: false, error: 'Already syncing' };
+    }
 
-    console.log('[Sync] Starting FULL sync for user:', userId);
+    const token = window.authService.token;
+    if (!token) {
+      console.warn('[SyncV2] Not authenticated, cannot sync');
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    console.log('[SyncV2] Starting sync TO server');
+    this.isSyncing = true;
 
     try {
-      // First, push local changes to server
-      const pushResult = await this.syncToServer(userId);
+      const pendingItems = await window.storage.getPendingSyncItems();
+      console.log(`[SyncV2] Preparing to sync ${pendingItems.length} items from queue`);
 
-      if (!pushResult.success) {
-        console.warn('[Sync] Push failed, attempting pull only');
+      if (pendingItems.length === 0) {
+        console.log('[SyncV2] No pending items to sync');
+        this.isSyncing = false;
+        return { success: true, synced: 0 };
       }
 
-      // Then, pull from server (server wins on conflicts)
-      const pullResult = await this.syncFromServer(userId);
+      const operations = pendingItems.map(item => ({
+        entityType: item.entityType,
+        action: item.action,
+        entityId: item.entityId,
+        entityData: item.entityData
+      }));
+
+      console.log('[SyncV2] Sending batch sync request...');
+      const response = await fetch(`${this.apiUrl}/api/v2/sync/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ operations })
+      });
+
+      console.log('[SyncV2] Response received, status:', response.status);
+      const data = await response.json();
+      console.log('[SyncV2] Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || `Sync failed: ${response.status}`);
+      }
+
+      console.log(`[SyncV2] Successfully synced ${data.processed} operations to server`);
+
+      for (const item of pendingItems) {
+        try {
+          await window.storage.removeSyncItem(item.id);
+          console.log('[SyncV2] Removed item from sync queue:', item.id);
+        } catch (err) {
+          console.warn('[SyncV2] Failed to remove item from queue:', item.id, err);
+        }
+      }
+
+      this.isSyncing = false;
+      return {
+        success: true,
+        synced: data.processed,
+        conflicts: data.conflicts || [],
+        errors: data.errors || []
+      };
+
+    } catch (error) {
+      console.error('[SyncV2] Sync to server error:', error);
+      this.isSyncing = false;
+      if (window.app) {
+        window.app.showWarning(`Sync failed: ${error.message}. Data saved locally only.`);
+      }
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Full two-way sync using sync queue
+   */
+  async syncFull() {
+    if (this.isSyncing) return { success: false, error: 'Already syncing' };
+
+    console.log('[SyncV2] Starting FULL sync');
+
+    try {
+      const pushResult = await this.syncToServer();
+
+      if (!pushResult.success) {
+        console.warn('[SyncV2] Push failed, attempting pull only');
+      }
+
+      const pullResult = await this.syncFromServer();
 
       if (!pullResult.success) {
-        console.error('[Sync] Pull failed');
+        console.error('[SyncV2] Pull failed');
         return { success: false, error: pullResult.error };
       }
 
-      console.log('[Sync] Full sync completed successfully');
+      console.log('[SyncV2] Full sync completed successfully');
       return {
         success: true,
         pushed: pushResult.synced || 0,
@@ -163,7 +170,7 @@ class SyncService {
       };
 
     } catch (error) {
-      console.error('[Sync] Full sync error:', error);
+      console.error('[SyncV2] Full sync error:', error);
       return { success: false, error: error.message };
     } finally {
       this.isSyncing = false;
@@ -171,61 +178,42 @@ class SyncService {
   }
 
   /**
-   * Perform initial sync after login
-   * This completely replaces local data with server data
-   * @param {string} userId
+   * Perform initial sync after login (server-wins)
    */
-  async initialSync(userId) {
-    console.log('[Sync] Performing initial sync for user:', userId);
+  async initialSync() {
+    const user = window.authService.getCurrentUser();
+    console.log('[SyncV2] Performing initial sync for user:', user?.id);
+
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
 
     try {
-      // Clear local data completely
-      await window.storage.clearAllContacts();
-
-      // Get all data from server
-      const response = await fetch(`${this.apiUrl}/api/sync/contacts?userId=${userId}`);
+      await window.storage.clearAllData();
+      const response = await fetch(`${this.apiUrl}/api/v2/contacts`, {
+        headers: {
+          'Authorization': `Bearer ${window.authService.token}`
+        }
+      });
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Initial sync failed');
       }
 
-      console.log(`[Sync] Initial sync received ${data.contacts.length} contacts`);
+      console.log(`[SyncV2] Initial sync received ${data.contacts.length} contacts`);
 
-      // Save all server data locally
       if (data.contacts.length > 0) {
         for (const contact of data.contacts) {
-          await window.storage.saveContact(contact, false);
+          await window.storage.saveContact(contact, true);
         }
       }
-
-      this.lastSyncTime = new Date().toISOString();
-      localStorage.setItem('rememberme_lastSync', this.lastSyncTime);
 
       return { success: true, contacts: data.contacts };
 
     } catch (error) {
-      console.error('[Sync] Initial sync error:', error);
+      console.error('[SyncV2] Initial sync error:', error);
       return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Sync in background without blocking UI
-   * @param {string} userId
-   */
-  async syncInBackground(userId) {
-    if (this.isSyncing) {
-      console.log('[Sync] Background sync skipped - already syncing');
-      return;
-    }
-
-    console.log('[Sync] Starting background sync');
-
-    try {
-      await this.syncFull(userId);
-    } catch (error) {
-      console.error('[Sync] Background sync error:', error);
     }
   }
 
@@ -234,20 +222,16 @@ class SyncService {
    */
   getSyncStatus() {
     return {
-      isSyncing: this.isSyncing,
-      lastSyncTime: this.lastSyncTime,
-      hasSynced: !!this.lastSyncTime
+      isSyncing: this.isSyncing
     };
   }
 
   /**
-   * Reset sync state (useful on logout)
+   * Reset sync state
    */
   reset() {
     this.isSyncing = false;
-    this.lastSyncTime = null;
-    localStorage.removeItem('rememberme_lastSync');
-    console.log('[Sync] Sync state reset');
+    console.log('[SyncV2] Sync state reset');
   }
 }
 
