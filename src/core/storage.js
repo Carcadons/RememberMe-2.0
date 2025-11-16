@@ -215,13 +215,27 @@ class Storage {
 
           // Auto-sync to server if user is logged in
           try {
+            console.log('[Storage] Checking auto-sync conditions...');
+            console.log('[Storage] authService exists:', !!window.authService);
+            if (window.authService) {
+              console.log('[Storage] isAuthenticated:', window.authService.isAuthenticated);
+              console.log('[Storage] token:', window.authService.token);
+              console.log('[Storage] current user:', window.authService.getCurrentUser());
+            }
+            console.log('[Storage] syncService exists:', !!window.syncService);
+
             if (window.authService && window.authService.isAuthenticated && window.syncService) {
               const user = window.authService.getCurrentUser();
+              console.log('[Storage] User for sync:', user);
               if (user && user.id) {
                 console.log('[Storage] Auto-syncing contact to server...');
-                await window.syncService.syncInBackground(user.id);
-                console.log('[Storage] Auto-sync complete');
+                const result = await window.syncService.syncToServer();
+                console.log('[Storage] Auto-sync result:', result);
+              } else {
+                console.log('[Storage] Cannot auto-sync: no user ID');
               }
+            } else {
+              console.log('[Storage] Auto-sync conditions not met');
             }
           } catch (syncError) {
             console.warn('[Storage] Auto-sync failed:', syncError);
@@ -281,6 +295,7 @@ class Storage {
       const request = store.getAll();
 
       request.onsuccess = async () => {
+        console.log('[Storage] getAllContacts - raw results from IndexedDB:', request.result.length, 'contacts');
         const contacts = [];
         for (const contact of request.result) {
           try {
@@ -290,6 +305,7 @@ class Storage {
             console.error('[Storage] Failed to decrypt contact:', error);
           }
         }
+        console.log('[Storage] getAllContacts - returning', contacts.length, 'decrypted contacts');
         resolve(contacts);
       };
 

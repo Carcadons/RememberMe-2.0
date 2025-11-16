@@ -20,8 +20,8 @@ class SyncService {
    * Get authentication token
    */
   getAuthToken() {
-    const authData = localStorage.getItem('rememberme_auth');
-    return authData ? JSON.parse(authData).token : null;
+    const token = localStorage.getItem('rememberme_token');
+    return token;
   }
 
   /**
