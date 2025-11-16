@@ -3,7 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
-const db = require('./database-v2');
+const db = require('./database');
 const crypto = require('crypto');
 
 // ===== MIDDLEWARE =====

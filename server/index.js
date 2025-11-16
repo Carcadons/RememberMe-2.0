@@ -11,8 +11,8 @@ const crypto = require('crypto');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-const db = require('./database-v2');
-const syncRoutes = require('./sync-endpoints-v2');
+const db = require('./database');
+const syncRoutes = require('./sync-endpoints');
 
 // Initialize Express app
 const app = express();
