@@ -317,7 +317,18 @@ class RememberMeApp {
     try {
       // Load today's view
       await window.todayView.loadTodaysData();
-      console.log('[App] Data loaded successfully');
+
+      // Load Contacts view
+      if (window.searchView) {
+        await window.searchView.loadAllContacts();
+      }
+
+      // Load Starred view
+      if (window.starredView) {
+        await window.starredView.loadStarred();
+      }
+
+      console.log('[App] All data loaded successfully');
     } catch (error) {
       console.error('[App] Error loading data:', error);
       this.showError('Failed to load data');

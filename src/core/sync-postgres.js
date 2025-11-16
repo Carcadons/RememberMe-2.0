@@ -52,13 +52,18 @@ class SyncService {
       console.log(`[Sync] Received ${data.contacts.length} contacts from server`);
 
       if (data.contacts.length > 0) {
-        await window.storage.clearAllContacts();
+        // Don't clear contacts first - just overwrite/add them
+        // This prevents data loss if sync fails
+        console.log('[Sync] Saving contacts to local database...');
 
         for (const contact of data.contacts) {
-          await window.storage.saveContact(contact, false);
+          // Mark as synced so they don't get pushed back to server
+          await window.storage.saveContact({ ...contact, synced: true }, false);
         }
 
         console.log('[Sync] Local database updated with server data');
+      } else {
+        console.log('[Sync] No contacts on server');
       }
 
       this.isSyncing = false;
@@ -178,8 +183,33 @@ class SyncService {
     console.log('[Sync] Performing initial sync');
 
     try {
-      const result = await this.syncFull();
-      return result;
+      // First, push any unsynced changes
+      console.log('[Sync] Step 1: Pushing unsynced changes to server');
+      const pushResult = await this.syncToServer();
+
+      if (!pushResult.success) {
+        console.warn('[Sync] Push failed:', pushResult.error);
+      } else {
+        console.log(`[Sync] Push successful, synced ${pushResult.synced || 0} contacts`);
+      }
+
+      // Then, pull from server (this is the critical part for login)
+      console.log('[Sync] Step 2: Pulling contacts from server');
+      const pullResult = await this.syncFromServer();
+
+      if (!pullResult.success) {
+        console.error('[Sync] Pull failed:', pullResult.error);
+        return { success: false, error: pullResult.error };
+      }
+
+      console.log(`[Sync] Initial sync complete, loaded ${pullResult.contacts?.length || 0} contacts from server`);
+
+      return {
+        success: true,
+        contacts: pullResult.contacts || [],
+        pushed: pushResult.synced || 0,
+        pulled: pullResult.contacts?.length || 0
+      };
     } catch (error) {
       console.error('[Sync] Initial sync error:', error);
       return { success: false, error: error.message };
