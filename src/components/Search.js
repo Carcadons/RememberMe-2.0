@@ -57,9 +57,13 @@ class SearchView {
       if (contactCard) {
         const contactId = contactCard.dataset.contactId;
         console.log('[Search] Found contact card with ID:', contactId);
+        console.log('[Search] Full card dataset:', contactCard.dataset);
+        console.log('[Search] Is button click?', !!e.target.closest('.btn'));
         if (contactId && !e.target.closest('.btn')) {
-          console.log('[Search] Opening contact details');
+          console.log('[Search] Opening contact details for ID:', contactId);
           this.viewContact(contactId);
+        } else if (!contactId) {
+          console.error('[Search] Contact ID is missing from dataset!');
         }
       }
     });
@@ -347,13 +351,14 @@ class SearchView {
    * @param {string} contactId
    */
   viewContact(contactId) {
-    console.log('[Search] Viewing contact:', contactId);
+    console.log('[Search] viewContact() called with:', contactId, 'type:', typeof contactId);
     console.log('[Search] window.app exists:', !!window.app);
     console.log('[Search] window.app.showContactDetail exists:', !!(window.app && window.app.showContactDetail));
     console.log('[Search] window.contactDetailModal exists:', !!window.contactDetailModal);
 
     if (!contactId) {
       console.error('[Search] No contact ID provided');
+      window.app?.showError('No contact ID provided');
       return;
     }
 
@@ -371,6 +376,7 @@ class SearchView {
     }
 
     console.error('[Search] No contact detail modal available');
+    window.app?.showError('Cannot open contact details');
   }
 
   /**

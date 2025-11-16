@@ -343,20 +343,31 @@ class StorageV2 {
    * @returns {Promise<Object|null>}
    */
   async getContact(contactId) {
-    if (!this.db) await this.init();
+    console.log('[StorageV2] getContact called with ID:', contactId, 'type:', typeof contactId);
+
+    if (!this.db) {
+      console.log('[StorageV2] DB not initialized, initializing...');
+      await this.init();
+    }
 
     return new Promise((resolve, reject) => {
+      console.log('[StorageV2] Creating transaction to get contact...');
       const transaction = this.db.transaction(['contacts'], 'readonly');
       const store = transaction.objectStore('contacts');
+      console.log('[StorageV2] About to call store.get() with ID:', contactId);
       const request = store.get(contactId);
 
       request.onsuccess = () => {
+        console.log('[StorageV2] getContact request succeeded');
         const contact = request.result;
+        console.log('[StorageV2] Contact found:', !!contact);
+        console.log('[StorageV2] Contact data:', contact ? { id: contact.id, name: contact.firstName } : null);
 
         // Verify user owns this contact
         const currentUserId = this.getCurrentUserIdOrNull();
+        console.log('[StorageV2] Verifying user ownership. Current user ID:', currentUserId);
         if (contact && currentUserId && contact.userId !== currentUserId) {
-          console.warn('[StorageV2] SECURITY: Contact userId mismatch');
+          console.warn('[StorageV2] SECURITY: Contact userId mismatch. Contact userId:', contact.userId);
           resolve(null);
           return;
         }
@@ -364,7 +375,10 @@ class StorageV2 {
         resolve(contact || null);
       };
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        console.error('[StorageV2] ERROR in getContact:', request.error);
+        reject(request.error);
+      };
     });
   }
 

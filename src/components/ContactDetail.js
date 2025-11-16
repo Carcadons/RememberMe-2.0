@@ -82,18 +82,41 @@ class ContactDetailModal {
    * @param {string} contactId
    */
   async show(contactId) {
+    console.log('[ContactDetail] show() called with contactId:', contactId, 'type:', typeof contactId);
+
+    if (!contactId) {
+      console.error('[ContactDetail] No contactId provided');
+      window.app.showError('No contact ID provided');
+      return;
+    }
+
+    // Log what storage and auth services are available
+    console.log('[ContactDetail] window.storage exists:', !!window.storage);
+    console.log('[ContactDetail] window.storage.getContact exists:', !!(window.storage && window.storage.getContact));
+    console.log('[ContactDetail] window.authService exists:', !!window.authService);
+    console.log('[ContactDetail] window.app exists:', !!window.app);
+
     try {
+      console.log('[ContactDetail] Loading contact from storage...');
       this.currentContact = await window.storage.getContact(contactId);
+      console.log('[ContactDetail] Contact loaded:', !!this.currentContact);
+
       if (!this.currentContact) {
+        console.error('[ContactDetail] Contact not found in storage');
+        console.error('[ContactDetail] Contact ID that failed:', contactId);
         window.app.showError('Contact not found');
         return;
       }
 
+      console.log('[ContactDetail] Rendering contact...');
       this.render();
+      console.log('[ContactDetail] Showing modal...');
       this.modal.style.display = 'flex';
+      console.log('[ContactDetail] Modal shown successfully');
     } catch (error) {
       console.error('[ContactDetail] Error loading contact:', error);
-      window.app.showError('Failed to load contact');
+      console.error('[ContactDetail] Error stack:', error.stack);
+      window.app.showError('Failed to load contact: ' + error.message);
     }
   }
 
