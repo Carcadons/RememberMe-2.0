@@ -233,6 +233,12 @@ class DatabaseV2 {
     // Apply triggers to tables
     const tables = ['contacts_v2'];
     for (const table of tables) {
+      // Drop existing trigger if it exists
+      await client.query(`
+        DROP TRIGGER IF EXISTS ${table}_audit_trigger ON ${table}
+      `);
+
+      // Create new trigger
       await client.query(`
         CREATE TRIGGER ${table}_audit_trigger
         AFTER INSERT OR UPDATE OR DELETE ON ${table}
