@@ -32,11 +32,19 @@ class TodayView {
         window.storage.getUpcomingScheduledContacts()
       ]);
 
+      console.log('[TodayView] Raw results:');
+      console.log('[TodayView] upcomingMeetings:', upcomingMeetings.length, upcomingMeetings);
+      console.log('[TodayView] upcomingScheduledContacts:', upcomingScheduledContacts.length, upcomingScheduledContacts);
+
       // Combine both lists
       this.meetings = [...upcomingMeetings, ...upcomingScheduledContacts];
 
+      console.log('[TodayView] Combined meetings before sort:', this.meetings.length, this.meetings);
+
       // Sort meetings chronologically by scheduled date
       this.meetings.sort((a, b) => new Date(a.scheduledDate || a.date) - new Date(b.scheduledDate || b.date));
+
+      console.log('[TodayView] Combined meetings after sort:', this.meetings.length, this.meetings);
 
       console.log(`[TodayView] Found ${upcomingMeetings.length} full meetings and ${upcomingScheduledContacts.length} scheduled contacts. Total: ${this.meetings.length}`);
 
@@ -55,17 +63,25 @@ class TodayView {
    * Render the today view
    */
   render() {
+    console.log('[TodayView] render() called with', this.meetings.length, 'meetings');
+    console.log('[TodayView] this.container:', this.container);
+    console.log('[TodayView] this.emptyState:', this.emptyState);
+
     if (this.meetings.length === 0) {
+      console.log('[TodayView] No meetings, showing empty state');
       this.showEmptyState();
       return;
     }
 
+    console.log('[TodayView] Hiding empty state, showing meetings');
     this.hideEmptyState();
 
     const html = this.meetings.map(meeting => {
       const contact = this.contacts.find(c => c.id === meeting.personId);
       return this.renderMeetingCard(meeting, contact);
     }).join('');
+
+    console.log('[TodayView] Generated HTML length:', html.length);
 
     this.container.innerHTML = `
       <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
@@ -79,6 +95,7 @@ class TodayView {
       </div>
     `;
 
+    console.log('[TodayView] HTML set in container');
     // Add click handlers
     this.attachEventListeners();
   }
