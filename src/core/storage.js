@@ -193,6 +193,22 @@ class StorageV2 {
     return new Promise((resolve, reject) => {
       console.log('[StorageV2] Creating transaction...');
       const transaction = this.db.transaction(['contacts'], 'readwrite');
+
+      // CRITICAL: Add transaction error handlers
+      transaction.onerror = (event) => {
+        console.error('[StorageV2] TRANSACTION ERROR:', event.target.error);
+        reject(event.target.error);
+      };
+
+      transaction.onabort = (event) => {
+        console.error('[StorageV2] TRANSACTION ABORTED:', event.target.error);
+        reject(event.target.error);
+      };
+
+      transaction.oncomplete = () => {
+        console.log('[StorageV2] TRANSACTION COMPLETED SUCCESSFULLY');
+      };
+
       console.log('[StorageV2] Transaction created, getting store...');
       const store = transaction.objectStore('contacts');
       console.log('[StorageV2] Store obtained, calling put...');
