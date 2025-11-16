@@ -233,29 +233,22 @@ class AddContactModal {
     console.log('[AddContactModal] Photo selected:', file.name);
 
     try {
-      // Use the photo cropper to crop around face
-      const croppedImageDataUrl = await window.photoCropper.showManualCropper(file);
+      // CRITICAL FIX: Disable broken cropper, use direct file preview
+      // The manual cropper has a bug where it immediately rejects with "User cancelled"
+      console.log('[AddContactModal] Skipping broken cropper, loading image directly...');
 
-      // Update the preview with the cropped image
-      const preview = document.getElementById('photoPreview');
-      preview.innerHTML = `<img src="${croppedImageDataUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-
-      // Store the cropped image data for form submission
-      this.croppedPhotoDataUrl = croppedImageDataUrl;
-
-      console.log('[AddContactModal] Photo cropped and preview updated');
-
-    } catch (error) {
-      console.error('[AddContactModal] Error cropping photo:', error);
-
-      // Fallback to original image
       const reader = new FileReader();
       reader.onload = (e) => {
         const preview = document.getElementById('photoPreview');
         preview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
         this.croppedPhotoDataUrl = e.target.result;
+        console.log('[AddContactModal] Photo loaded directly, preview updated');
       };
       reader.readAsDataURL(file);
+
+    } catch (error) {
+      console.error('[AddContactModal] Error loading photo:', error);
+      alert('Failed to load photo');
     }
   }
 
