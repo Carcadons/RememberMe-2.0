@@ -186,7 +186,7 @@ class Database {
       );
       return {
         ...result.rows[0],
-        data: JSON.parse(result.rows[0].data)
+        data: typeof result.rows[0].data === 'string' ? JSON.parse(result.rows[0].data) : result.rows[0].data
       };
     } finally {
       client.release();
@@ -205,7 +205,7 @@ class Database {
       );
       return result.rows.map(row => ({
         ...row,
-        data: JSON.parse(row.data)
+        data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data
       }));
     } finally {
       client.release();
@@ -225,7 +225,7 @@ class Database {
       if (result.rows.length === 0) return null;
       return {
         ...result.rows[0],
-        data: JSON.parse(result.rows[0].data)
+        data: typeof result.rows[0].data === 'string' ? JSON.parse(result.rows[0].data) : result.rows[0].data
       };
     } finally {
       client.release();
@@ -245,7 +245,7 @@ class Database {
       if (result.rows.length === 0) return null;
       return {
         ...result.rows[0],
-        data: JSON.parse(result.rows[0].data)
+        data: typeof result.rows[0].data === 'string' ? JSON.parse(result.rows[0].data) : result.rows[0].data
       };
     } finally {
       client.release();
@@ -350,7 +350,7 @@ class Database {
 
       return result.rows.map(row => ({
         ...row,
-        contact_data: JSON.parse(row.contact_data)
+        contact_data: typeof row.contact_data === 'string' ? JSON.parse(row.contact_data) : row.contact_data
       }));
     } finally {
       client.release();
