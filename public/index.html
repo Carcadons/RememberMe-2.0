@@ -161,18 +161,23 @@
             +
         </button>
 
-        <!-- Import Menu (Hidden by default) -->
-        <div id="importMenu" class="hidden" style="position: fixed; bottom: 160px; right: 24px; display: flex; flex-direction: column; gap: 0.75rem; z-index: 998;">
-            <!-- Add Manual Contact (Primary Action) -->
-            <button class="btn btn-primary" id="addManualContactBtn" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 24px; padding: 0.75rem 1.5rem; font-size: 0.875rem;">
-                ✏️ Create Contact
-            </button>
-            <button class="btn btn-secondary" id="importContactsBtnMobile" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 24px; padding: 0.75rem 1.5rem; font-size: 0.875rem;">
-                📱 iPhone Contacts
-            </button>
-            <button class="btn btn-secondary" id="importLinkedinBtnMobile" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 24px; padding: 0.75rem 1.5rem; font-size: 0.875rem;">
-                💼 LinkedIn
-            </button>
+        <!-- FAB Menu Collapsible (Hidden by default) -->
+        <div id="fabMenu" class="fab-menu-overlay hidden">
+            <div class="fab-menu-backdrop" id="fabMenuBackdrop"></div>
+            <div class="fab-menu-items" id="fabMenuItems">
+                <button class="fab-menu-item btn btn-secondary" id="importContactsBtnMobile">
+                    <span class="fab-menu-icon">📱</span>
+                    <span class="fab-menu-label">iPhone Contacts</span>
+                </button>
+                <button class="fab-menu-item btn btn-secondary" id="importLinkedinBtnMobile">
+                    <span class="fab-menu-icon">💼</span>
+                    <span class="fab-menu-label">LinkedIn</span>
+                </button>
+                <button class="fab-menu-item btn btn-primary" id="addManualContactBtn">
+                    <span class="fab-menu-icon">✏️</span>
+                    <span class="fab-menu-label">Create Contact</span>
+                </button>
+            </div>
         </div>
 
         <!-- Tab Bar -->

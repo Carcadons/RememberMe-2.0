@@ -420,11 +420,19 @@ class RememberMeApp {
       });
     });
 
-    // Floating action button (opens manual contact creation)
+    // Floating action button (opens FAB menu)
     const addBtn = document.getElementById('addPersonBtn');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
-        this.addNewPerson();
+        this.toggleFabMenu();
+      });
+    }
+
+    // FAB Menu Backdrop (closes menu when clicked)
+    const fabMenuBackdrop = document.getElementById('fabMenuBackdrop');
+    if (fabMenuBackdrop) {
+      fabMenuBackdrop.addEventListener('click', () => {
+        this.hideFabMenu();
       });
     }
 
@@ -599,10 +607,58 @@ class RememberMeApp {
   }
 
   /**
-   * Add new person
+   * FAB Menu Functions
+   */
+  toggleFabMenu() {
+    const fabMenu = document.getElementById('fabMenu');
+    const fabBtn = document.getElementById('addPersonBtn');
+
+    if (!fabMenu || !fabBtn) return;
+
+    if (fabMenu.classList.contains('active')) {
+      this.hideFabMenu();
+    } else {
+      this.showFabMenu();
+    }
+  }
+
+  showFabMenu() {
+    console.log('[App] Showing FAB menu');
+    const fabMenu = document.getElementById('fabMenu');
+    const fabBtn = document.getElementById('addPersonBtn');
+
+    if (!fabMenu || !fabBtn) return;
+
+    fabMenu.classList.remove('hidden');
+    fabMenu.classList.add('active');
+    fabBtn.classList.add('active');
+  }
+
+  hideFabMenu() {
+    console.log('[App] Hiding FAB menu');
+    const fabMenu = document.getElementById('fabMenu');
+    const fabBtn = document.getElementById('addPersonBtn');
+
+    if (!fabMenu || !fabBtn) return;
+
+    fabMenu.classList.remove('active');
+
+    // Wait for animation to complete before hiding completely
+    setTimeout(() => {
+      if (!fabMenu.classList.contains('active')) {
+        fabMenu.classList.add('hidden');
+      }
+    }, 300);
+
+    fabBtn.classList.remove('active');
+  }
+
+  /**
+   * Add new person (from FAB menu)
    */
   addNewPerson() {
     console.log('[App] Add new person clicked');
+    this.hideFabMenu();
     if (window.addContactModal) {
       window.addContactModal.show();
     }
