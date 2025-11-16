@@ -444,6 +444,65 @@ class StorageV2 {
   }
 
   /**
+   * Get contacts scheduled to meet today (from nextMeetingDate field)
+   * This allows users to schedule meetings without creating full meeting records
+   */
+  async getTodaysScheduledContacts() {
+    if (!this.db) await this.init();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['contacts'], 'readonly');
+      const store = transaction.objectStore('contacts');
+
+      const userId = this.getUserIdWithFallback();
+      if (!userId) {
+        console.warn('[StorageV2] No user ID available for getTodaysScheduledContacts');
+        resolve([]);
+        return;
+      }
+
+      const index = store.index('userId');
+      const request = index.getAll(userId);
+
+      request.onsuccess = () => {
+        const allContacts = request.result || [];
+
+        // Filter contacts with nextMeetingDate scheduled for today
+        const contactsMeetingToday = allContacts.filter(contact => {
+          if (!contact.nextMeetingDate && !contact.nextMeeting) return false;
+
+          // Check both nextMeetingDate (new field) and nextMeeting (old/alternative field)
+          const meetingDateStr = contact.nextMeetingDate || contact.nextMeeting;
+          const meetingDate = new Date(meetingDateStr);
+
+          return meetingDate >= today && meetingDate < tomorrow;
+        });
+
+        // Convert contacts to meeting format for consistency with existing meetings
+        const formattedMeetings = contactsMeetingToday.map(contact => ({
+          id: contact.id + '_scheduled', // Create a unique ID
+          personId: contact.id,
+          scheduledDate: contact.nextMeetingDate || contact.nextMeeting,
+          topic: 'Scheduled Meeting',
+          fromContact: true // Flag to indicate this came from contact's next meeting field
+        }));
+
+        resolve(formattedMeetings);
+      };
+
+      request.onerror = () => {
+        console.error('[StorageV2] Error getting today\'s scheduled contacts:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
    * Save a meeting (creates or updates)
    * @param {Object} meeting
    * @returns {Promise<string>} The meeting ID

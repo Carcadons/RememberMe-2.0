@@ -124,6 +124,12 @@ class RememberMeApp {
         console.log('[App] ContactDetailModal initialized');
       }
 
+      if (window.scheduleMeetingModal) {
+        console.log('[App] Initializing ScheduleMeetingModal...');
+        window.scheduleMeetingModal.init();
+        console.log('[App] ScheduleMeetingModal initialized');
+      }
+
       if (window.authModal) {
         console.log('[App] Initializing AuthModal...');
         window.authModal.init();
@@ -780,9 +786,8 @@ class RememberMeApp {
    */
   scheduleMeeting() {
     console.log('[App] Schedule Meeting clicked');
-    if (window.addContactModal) {
-      // Configure the modal for quick schedule mode
-      window.addContactModal.showQuickSchedule();
+    if (window.scheduleMeetingModal) {
+      window.scheduleMeetingModal.show();
     }
   }
 
