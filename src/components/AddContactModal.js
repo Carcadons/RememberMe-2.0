@@ -315,10 +315,20 @@ class AddContactModal {
       }
 
       // Build contact data
+      const firstNameValue = document.getElementById('contactFirstName').value.trim();
+      const lastNameValue = document.getElementById('contactLastName').value.trim();
+
+      console.log('[AddContactModal] Form values:', {
+        firstName: firstNameValue,
+        lastName: lastNameValue,
+        title: document.getElementById('contactTitle').value,
+        email: document.getElementById('contactCompany').value
+      });
+
       const contact = {
         id: this.isEdit ? this.editingContact.id : window.encryption.generateId(),
-        firstName: firstName,
-        lastName: lastName,
+        firstName: firstNameValue,
+        lastName: lastNameValue,
         title: document.getElementById('contactTitle').value.trim(),
         company: document.getElementById('contactCompany').value.trim(),
         howWeMet: document.getElementById('contactHowWeMet').value.trim(),
@@ -330,6 +340,8 @@ class AddContactModal {
         tags: [],
         notes: []
       };
+
+      console.log('[AddContactModal] FINAL CONTACT OBJECT:', JSON.stringify(contact, null, 2));
 
       console.log('[AddContactModal] Basic contact data:', { id: contact.id, firstName: contact.firstName, lastName: contact.lastName });
 
