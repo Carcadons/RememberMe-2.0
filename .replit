@@ -4,7 +4,7 @@ modules = ["nodejs-18:v3-20230608-f4cd419", "postgresql-16"]
 
 # Development Environment
 [nix]
-channel = "stable-22_11"
+channel = "stable-25_05"
 
 [[ports]]
 localPort = 3000
@@ -13,6 +13,10 @@ externalPort = 80
 [[ports]]
 localPort = 5000
 externalPort = 5000
+
+[[ports]]
+localPort = 36759
+externalPort = 3000
 
 # Run configuration - Serve the PWA static files
 [run]
