@@ -142,17 +142,26 @@ class StorageV2 {
    * @returns {Promise<string>} Contact ID
    */
   async saveContact(contact, skipSyncQueue = false) {
-    if (!this.db) await this.init();
+    console.log('[StorageV2] saveContact STARTED:', { contactId: contact.id, firstName: contact.firstName });
+
+    if (!this.db) {
+      console.log('[StorageV2] DB not initialized, initializing...');
+      await this.init();
+    }
 
     const userId = this.getCurrentUserId();
+    console.log('[StorageV2] Got userId:', userId);
+
     const now = new Date().toISOString();
 
     // Validate required fields
     if (!contact.firstName) {
+      console.error('[StorageV2] ERROR: firstName missing!');
       throw new Error('Contact must have firstName');
     }
 
     const contactId = contact.id || this.createId();
+    console.log('[StorageV2] Using contactId:', contactId);
 
     const contactData = {
       id: contactId,
@@ -179,13 +188,19 @@ class StorageV2 {
       serverVersion: contact.serverVersion || 0
     };
 
+    console.log('[StorageV2] Contact data prepared:', contactData);
+
     return new Promise((resolve, reject) => {
+      console.log('[StorageV2] Creating transaction...');
       const transaction = this.db.transaction(['contacts'], 'readwrite');
+      console.log('[StorageV2] Transaction created, getting store...');
       const store = transaction.objectStore('contacts');
+      console.log('[StorageV2] Store obtained, calling put...');
       const request = store.put(contactData);
+      console.log('[StorageV2] Put request created');
 
       request.onsuccess = async () => {
-        console.log(`[StorageV2] Contact saved: ${contactId}`);
+        console.log(`[StorageV2] SUCCESS: Contact saved with ID: ${contactId}`);
 
         // Add to sync queue
         if (!skipSyncQueue) {
