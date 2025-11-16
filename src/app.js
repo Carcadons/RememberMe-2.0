@@ -347,24 +347,34 @@ class RememberMeApp {
     this.showLoading();
 
     try {
-      // Get user ID before logout
+      // Get user ID before logout - store it for cleanup
       console.log('[App] Getting current user...');
       const user = window.authService.getCurrentUser();
       console.log('[App] User:', user?.id);
 
-      // Clear sync state
+      // Clear sync state BEFORE clearing data to avoid conflicts
       console.log('[App] Clearing sync state...');
       window.syncService.reset();
 
-      // Clear local data
-      console.log('[App] Clearing local data...');
-      await window.storage.clearAllContacts();
-      console.log('[App] Local data cleared');
-
-      // Logout from auth service
+      // Logout from auth service FIRST (this clears session but maintains user ref)
       console.log('[App] Logging out from auth service...');
       window.authService.logout();
       console.log('[App] Auth service logout complete');
+
+      // Clear local data with fallback user handling
+      console.log('[App] Clearing local data...');
+      try {
+        if (user?.id) {
+          // Use direct IndexedDB operations with stored user ID for cleanup
+          await this.clearUserData(user.id);
+          console.log('[App] User data cleared for user:', user.id);
+        } else {
+          console.warn('[App] No user ID available for cleanup, skipping data clearing');
+        }
+      } catch (cleanupError) {
+        console.error('[App] Error clearing user data:', cleanupError);
+        // Continue with logout despite cleanup error
+      }
 
       // Clear UI
       console.log('[App] Clearing UI...');
@@ -377,12 +387,9 @@ class RememberMeApp {
       console.log('[App] Showing success message');
       this.showSuccess('Logged out successfully');
 
-      // Redirect to login page
+      // Redirect to login page with immediate redirect to avoid state confusion
       console.log('[App] Redirecting to login page...');
-      setTimeout(() => {
-        console.log('[App] Redirecting now...');
-        window.location.href = '/login.html';
-      }, 1000);
+      window.location.href = '/login.html';
 
       console.log('[App] Logout complete');
 
@@ -390,6 +397,79 @@ class RememberMeApp {
       console.error('[App] Logout error:', error);
       this.hideLoading();
       this.showError('Logout failed');
+    }
+  }
+
+  /**
+   * Clear user data with explicit user ID
+   * @param {string} userId
+   */
+  async clearUserData(userId) {
+    console.log(`[App] Clearing user data for ${userId}...`);
+
+    if (!window.storage || !window.storage.db) {
+      console.warn('[App] Storage not initialized, skipping user data cleanup');
+      return;
+    }
+
+    try {
+      const transaction = window.storage.db.transaction(['contacts', 'syncQueue', 'userData'], 'readwrite');
+
+      // Clear contacts for specific user
+      const contactsPromise = new Promise((resolve, reject) => {
+        try {
+          const store = transaction.objectStore('contacts');
+          const index = store.index('userId');
+          const request = index.openCursor(IDBKeyRange.only(userId));
+
+          request.onsuccess = () => {
+            const cursor = request.result;
+            if (cursor) {
+              const canDelete = cursor.value.userId === userId;
+              if (canDelete) {
+                cursor.delete();
+              }
+              cursor.continue();
+            } else {
+              resolve();
+            }
+          };
+          request.onerror = () => reject(request.error);
+        } catch (error) {
+          console.warn('[App] Error clearing contacts:', error);
+          // Don't fail the logout if contacts clear fails
+          resolve();
+        }
+      });
+
+      // Clear sync queue for specific user
+      const syncPromise = new Promise((resolve, reject) => {
+        try {
+          const store = transaction.objectStore('syncQueue');
+          const index = store.index('userId');
+          const request = index.openCursor(IDBKeyRange.only(userId));
+
+          request.onsuccess = () => {
+            const cursor = request.result;
+            if (cursor) {
+              cursor.delete();
+              cursor.continue();
+            } else {
+              resolve();
+            }
+          };
+          request.onerror = () => reject(request.error);
+        } catch (error) {
+          console.warn('[App] Error clearing sync queue:', error);
+          resolve();
+        }
+      });
+
+      await Promise.all([contactsPromise, syncPromise]);
+      console.log(`[App] User data cleared for user ${userId}`);
+    } catch (error) {
+      console.error(`[App] Error in clearUserData for ${userId}:`, error);
+      throw error;
     }
   }
 
@@ -855,9 +935,12 @@ class RememberMeApp {
       });
 
       // Create contact from LinkedIn data
+      const firstName = row['First Name'] || '';
+      const lastName = row['Last Name'] || '';
       const contact = {
         id: window.encryption.generateId(),
-        name: `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim(),
+        firstName: firstName,
+        lastName: lastName,
         title: row['Position'] || '',
         company: row['Company'] || '',
         email: row['Email Address'] || '',
@@ -879,7 +962,7 @@ class RememberMeApp {
         contact.quickFacts.push(`LinkedIn: ${row['URL']}`);
       }
 
-      if (contact.name) {
+      if (contact.firstName) {
         contacts.push(contact);
       }
     }
@@ -920,15 +1003,21 @@ class RememberMeApp {
       for (const line of lines) {
         const cleanLine = line.trim();
 
-        // Name (Full Name)
-        if (cleanLine.match(/FN[:;]/i)) {
-          contact.name = cleanLine.replace(/.*FN[:;]*/i, '').replace(/^:/, '').trim();
+        // Name (structured N field - preferred for parsing)
+        if (cleanLine.match(/N[:;]/i)) {
+          const nameParts = cleanLine.replace(/.*N[:;]*/i, '').split(';');
+          // N format: LastName;FirstName;MiddleName;Prefix;Suffix
+          contact.firstName = nameParts[1] || '';
+          contact.lastName = nameParts[0] || '';
         }
 
-        // Name (structured)
-        if (cleanLine.match(/N[:;]/i) && !contact.name) {
-          const nameParts = cleanLine.replace(/.*N[:;]*/i, '').split(';');
-          contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim();
+        // Name (Full Name - fallback if N field not present)
+        if (cleanLine.match(/FN[:;]/i) && !contact.firstName) {
+          const fullName = cleanLine.replace(/.*FN[:;]*/i, '').replace(/^:/, '').trim();
+          // Try to split full name into first/last
+          const nameParts = fullName.split(' ');
+          contact.firstName = nameParts[0] || '';
+          contact.lastName = nameParts.slice(1).join(' ') || '';
         }
 
         // Organization/Company
@@ -958,7 +1047,7 @@ class RememberMeApp {
         }
       }
 
-      if (contact.name) {
+      if (contact.firstName) {
         contacts.push(contact);
       }
     }

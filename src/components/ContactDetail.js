@@ -236,18 +236,43 @@ class ContactDetailModal {
    */
   async toggleStar() {
     try {
-      this.currentContact.starred = !this.currentContact.starred;
-      await window.storage.saveContact(this.currentContact);
+      // Ensure authentication is properly set
+      if (!window.authService?.checkAuth?.() || !window.storage) {
+        console.error('[ContactDetail] Cannot toggle star - authentication or storage unavailable');
+        window.app.showError('Authentication required');
+        return;
+      }
 
-      // Update UI if needed
+      console.log('[ContactDetail] Toggling star for contact:', this.currentContact.id);
+
+      // Get fresh contact data
+      const freshContact = await window.storage.getContact(this.currentContact.id);
+      if (!freshContact) {
+        console.error('[ContactDetail] Contact not found in storage');
+        window.app.showError('Contact not found');
+        return;
+      }
+
+      // Toggle star state on fresh data
+      freshContact.starred = !freshContact.starred;
+
+      console.log('[ContactDetail] Saving starred state:', freshContact.starred);
+      await window.storage.saveContact(freshContact);
+
+      // Update the cached contact
+      this.currentContact.starred = freshContact.starred;
+
+      // Update UI
       if (typeof window.starredView !== 'undefined') {
-        window.starredView.loadStarred();
+        await window.starredView.loadStarred();
       }
 
       this.render();
-      window.app.showSuccess(this.currentContact.starred ? 'Contact starred!' : 'Contact unstarred');
+      window.app.showSuccess(freshContact.starred ? 'Contact starred!' : 'Contact unstarred');
+      console.log('[ContactDetail] Star toggle successful');
     } catch (error) {
       console.error('[ContactDetail] Error toggling star:', error);
+      window.app.showError('Failed to update contact');
     }
   }
 

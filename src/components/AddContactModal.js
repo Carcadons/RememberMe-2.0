@@ -40,7 +40,8 @@ class AddContactModal {
               <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--text-secondary);">Basic Information</h3>
 
               <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Full Name *</label>
-              <input type="text" id="contactName" required style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
+              <input type="text" id="contactFirstName" required placeholder="First Name" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 0.5rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
+              <input type="text" id="contactLastName" placeholder="Last Name" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
 
               <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Title</label>
               <input type="text" id="contactTitle" placeholder="e.g., CEO, Marketing Manager" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
@@ -152,7 +153,7 @@ class AddContactModal {
    */
   show() {
     this.modal.style.display = 'flex';
-    document.getElementById('contactName').focus();
+    document.getElementById('contactFirstName').focus();
   }
 
   /**
@@ -177,9 +178,8 @@ class AddContactModal {
     document.getElementById('saveContact').textContent = 'Update Contact';
 
     // Fill form with contact data
-    // Combine firstName and lastName for the name field (fallback to name for backwards compatibility)
-    const fullName = contact.firstName || contact.name || '';
-    document.getElementById('contactName').value = fullName;
+    document.getElementById('contactFirstName').value = contact.firstName || contact.name?.split(' ')[0] || '';
+    document.getElementById('contactLastName').value = contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '';
     document.getElementById('contactTitle').value = contact.title || '';
     document.getElementById('contactCompany').value = contact.company || '';
     document.getElementById('contactHowWeMet').value = contact.howWeMet || '';
@@ -299,18 +299,13 @@ class AddContactModal {
     console.log('[AddContactModal] isEdit:', this.isEdit);
     console.log('[AddContactModal] editingContact:', this.editingContact);
 
-    const name = document.getElementById('contactName').value.trim();
-    console.log('[AddContactModal] Name:', name);
+    const firstName = document.getElementById('contactFirstName').value.trim();
+    const lastName = document.getElementById('contactLastName').value.trim();
 
-    if (!name) {
-      alert('Name is required');
+    if (!firstName) {
+      alert('First name is required');
       return;
     }
-
-    // Split name into firstName and lastName
-    const nameParts = name.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
 
     // Validate edit mode state
     if (this.isEdit && !this.editingContact) {

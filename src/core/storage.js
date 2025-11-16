@@ -4,7 +4,7 @@
 class StorageV2 {
   constructor() {
     this.dbName = 'RememberMeDB_v2';
-    this.dbVersion = 2;
+    this.dbVersion = 3; // Incremented to trigger schema upgrade for starred field
     this.db = null;
   }
 
@@ -100,6 +100,35 @@ class StorageV2 {
     }
   }
 
+  /**
+   * Get user ID with fallback validation
+   * @private
+   */
+  getUserIdWithFallback() {
+    try {
+      // Primary method
+      if (window.authService && window.authService.getCurrentUser && window.authService.getCurrentUser()) {
+        return window.authService.getCurrentUser().id;
+      }
+
+      // Fallback: extract user ID from localStorage
+      const session = localStorage.getItem('rememberme_user');
+      if (session) {
+        try {
+          const userData = JSON.parse(session);
+          return userData.id;
+        } catch {
+          console.warn('[StorageV2] Could not parse user session from localStorage');
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('[StorageV2] Error getting user ID with fallback:', error);
+      return null;
+    }
+  }
+
   getCurrentUserIdOrNull() {
     return window.authService?.getCurrentUser()?.id || null;
   }
@@ -141,6 +170,7 @@ class StorageV2 {
       location: contact.location || '',
       tags: contact.tags || [],
       quickFacts: contact.quickFacts || [],
+      starred: contact.starred || false,
       lastModified: now,
       lastSynced: contact.lastSynced || null,
       syncState: contact.syncState || 'pending',
@@ -262,8 +292,9 @@ class StorageV2 {
       const store = transaction.objectStore('meetings');
 
       // Get all meetings for the current user
-      const userId = this.getCurrentUserIdOrNull();
+      const userId = this.getUserIdWithFallback();
       if (!userId) {
+        console.warn('[StorageV2] No user ID available for getTodaysMeetings');
         resolve([]);
         return;
       }
