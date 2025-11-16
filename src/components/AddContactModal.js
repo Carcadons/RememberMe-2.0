@@ -408,6 +408,25 @@ class AddContactModal {
       console.log('[AddContactModal] Hiding modal');
       this.hide();
 
+      // CRITICAL: Automatically sync to server after saving
+      console.log('[AddContactModal] Triggering automatic sync to server...');
+      if (window.syncService && window.syncService.syncToServer) {
+        window.syncService.syncToServer().then(result => {
+          if (result.success) {
+            console.log('[AddContactModal] Sync successful:', result);
+            window.app.showSuccess(`Contact synced to server! (${result.synced || 0} items synced)`);
+          } else {
+            console.warn('[AddContactModal] Sync failed:', result.error);
+            window.app.showWarning(`Contact saved locally but sync failed: ${result.error}`);
+          }
+        }).catch(error => {
+          console.error('[AddContactModal] Sync error:', error);
+          window.app.showWarning('Contact saved locally but sync to server failed');
+        });
+      } else {
+        console.warn('[AddContactModal] No sync service available');
+      }
+
     } catch (error) {
       console.error('[AddContactModal] FULL ERROR:', error);
       console.error('Stack trace:', error.stack);

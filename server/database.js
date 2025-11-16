@@ -130,7 +130,7 @@ class DatabaseV2 {
         CREATE TABLE IF NOT EXISTS sync_state_v2 (
           user_id UUID PRIMARY KEY REFERENCES users_v2(id) ON DELETE CASCADE,
           last_sync_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          sync_version INTEGER DEFAULT 0,
+          sync_version BIGINT DEFAULT 0,
           device_ids TEXT[] DEFAULT '{}'
         )
       `);
