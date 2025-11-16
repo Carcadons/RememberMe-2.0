@@ -4,7 +4,7 @@ modules = ["nodejs-18:v3-20230608-f4cd419", "postgresql-16"]
 
 # Development Environment
 [nix]
-channel = "stable-22_11"
+channel = "stable-25_05"
 
 [[ports]]
 localPort = 3000
