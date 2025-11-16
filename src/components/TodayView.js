@@ -22,19 +22,23 @@ class TodayView {
    */
   async loadTodaysData() {
     try {
-      console.log('[TodayView] Loading today\'s data...');
+      console.log('[TodayView] Loading upcoming meetings...');
 
-      // Get today's meetings from both sources:
+      // Get upcoming meetings (today and future) from both sources:
       // 1. Full meeting records from meetings table
-      // 2. Contacts with nextMeetingDate scheduled for today
-      const [todaysMeetings, scheduledContacts] = await Promise.all([
-        window.storage.getTodaysMeetings(),
-        window.storage.getTodaysScheduledContacts()
+      // 2. Contacts with nextMeetingDate scheduled for today or future
+      const [upcomingMeetings, upcomingScheduledContacts] = await Promise.all([
+        window.storage.getUpcomingMeetings(),
+        window.storage.getUpcomingScheduledContacts()
       ]);
 
       // Combine both lists
-      this.meetings = [...todaysMeetings, ...scheduledContacts];
-      console.log(`[TodayView] Found ${todaysMeetings.length} full meetings and ${scheduledContacts.length} scheduled contacts. Total: ${this.meetings.length}`);
+      this.meetings = [...upcomingMeetings, ...upcomingScheduledContacts];
+
+      // Sort meetings chronologically by scheduled date
+      this.meetings.sort((a, b) => new Date(a.scheduledDate || a.date) - new Date(b.scheduledDate || b.date));
+
+      console.log(`[TodayView] Found ${upcomingMeetings.length} full meetings and ${upcomingScheduledContacts.length} scheduled contacts. Total: ${this.meetings.length}`);
 
       // Get all contacts for mapping
       this.contacts = await window.storage.getAllContacts();
@@ -42,8 +46,8 @@ class TodayView {
       this.render();
 
     } catch (error) {
-      console.error('[TodayView] Error loading today\'s data:', error);
-      this.showError('Failed to load today\'s meetings');
+      console.error('[TodayView] Error loading upcoming meetings:', error);
+      this.showError('Failed to load meetings');
     }
   }
 
@@ -101,8 +105,8 @@ class TodayView {
           <div class="meeting-details" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <p style="font-size: 0.875rem; color: var(--text-secondary);">Time</p>
-                <p style="font-weight: 600;">${this.formatTime(meeting.date)}</p>
+                <p style="font-size: 0.875rem; color: var(--text-secondary);">Date</p>
+                <p style="font-weight: 600;">${this.formatDate(meeting.scheduledDate || meeting.date)}</p>
               </div>
               <div style="text-align: right;">
                 <p style="font-size: 0.875rem; color: var(--text-secondary);">Topic</p>
@@ -133,6 +137,11 @@ class TodayView {
     const quickFacts = contact.quickFacts || [];
     const recentNotes = contact.notes ? contact.notes.slice(-1) : [];
 
+    const meetingDate = new Date(meeting.scheduledDate || meeting.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isToday = meetingDate >= today && meetingDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+
     return `
       <div class="person-card" data-contact-id="${contact.id}" data-meeting-id="${meeting.id}">
         <div class="person-header">
@@ -140,10 +149,10 @@ class TodayView {
           <div class="person-info">
             <h3>${displayName}</h3>
             <p>${contact.title || 'No title'}${contact.company ? ` at ${contact.company}` : ''}</p>
-            ${meeting.fromContact ?
-              `<p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Meeting scheduled ${this.formatDate(meeting.scheduledDate)}</p>` :
-              `<p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Meeting at ${this.formatTime(meeting.date || meeting.scheduledDate)}</p>`
-            }
+            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+              ${isToday ? 'Today • ' : ''}${meeting.fromContact ? 'Meeting scheduled ' : ''}${this.formatDate(meeting.scheduledDate || meeting.date)}
+              ${!meeting.fromContact && meetingDate.getTime() > today.getTime() ? ' at ' + this.formatTime(meeting.date || meeting.scheduledDate) : ''}
+            </p>
           </div>
           <div style="margin-left: auto;">
             ${contact.starred ? '<div style="color: #f39c12;">★</div>' : ''}
@@ -170,7 +179,7 @@ class TodayView {
 
         ${meeting.topic ? `
           <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-            <p style="font-size: 0.75rem; color: var(--text-secondary);">Today's topic</p>
+            <p style="font-size: 0.75rem; color: var(--text-secondary);">Topic</p>
             <p style="font-size: 0.875rem; margin-top: 0.25rem;">${meeting.topic}</p>
           </div>
         ` : ''}
@@ -187,7 +196,7 @@ class TodayView {
         <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
           <button class="btn btn-secondary" style="flex: 1; padding: 0.5rem; font-size: 0.875rem;"
                   onclick="window.todayView.openMeetingNotes('${meeting.id}')">
-            Add Note
+            ${isToday ? 'Add Note' : 'Prepare'}
           </button>
           <button class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 0.875rem;"
                   onclick="window.todayView.viewContact('${contact.id}')">

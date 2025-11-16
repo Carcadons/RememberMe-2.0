@@ -5,6 +5,7 @@ class SearchView {
     this.searchInput = document.getElementById('searchInput');
     this.emptyState = document.getElementById('contactsEmpty');
     this.allContacts = [];
+    this.activeTouchCard = null;
   }
 
   /**
@@ -52,8 +53,9 @@ class SearchView {
     // CRITICAL FIX: Add touch/click event delegation for contact cards (iOS compatibility)
     this.container.addEventListener('click', (e) => {
       const contactCard = e.target.closest('.person-card');
-      if (contactCard) {
+      if (contactCard && !e.target.classList.contains('btn')) {
         e.preventDefault();
+        e.stopPropagation();
         const contactId = contactCard.dataset.contactId;
         if (contactId) {
           console.log('[Search] Contact card clicked:', contactId);
@@ -62,25 +64,34 @@ class SearchView {
       }
     });
 
-    // Touch events for iOS - capture phase to prevent scrolling
+    // Handle touch events for iOS
     this.container.addEventListener('touchstart', (e) => {
       const contactCard = e.target.closest('.person-card');
-      if (contactCard) {
+      if (contactCard && !e.target.classList.contains('btn')) {
+        this.activeTouchCard = contactCard;
         contactCard.style.opacity = '0.7';
-        // Prevent scrolling when touching a card
-        e.preventDefault();
       }
-    }, { passive: false });
+    }, { passive: true });
 
     this.container.addEventListener('touchend', (e) => {
       const contactCard = e.target.closest('.person-card');
-      if (contactCard) {
+      if (contactCard && !e.target.classList.contains('btn')) {
         contactCard.style.opacity = '1';
-        const contactId = contactCard.dataset.contactId;
-        if (contactId) {
-          console.log('[Search] Contact card touched:', contactId);
-          this.viewContact(contactId);
+        if (this.activeTouchCard === contactCard) {
+          const contactId = contactCard.dataset.contactId;
+          if (contactId) {
+            console.log('[Search] Contact card touched:', contactId);
+            this.viewContact(contactId);
+          }
         }
+        this.activeTouchCard = null;
+      }
+    });
+
+    this.container.addEventListener('touchcancel', () => {
+      if (this.activeTouchCard) {
+        this.activeTouchCard.style.opacity = '1';
+        this.activeTouchCard = null;
       }
     });
   }

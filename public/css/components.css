@@ -273,3 +273,31 @@
   height: 2px;
   background: var(--accent-gradient);
 }
+
+
+/* Person Card - iOS Touch Fixes */
+.person-card {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: pointer;
+  position: relative;
+  transform: translateZ(0);
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.person-card:active {
+  opacity: 0.7;
+}
+
+/* Ensure all child elements are clickable */
+.person-card * {
+  pointer-events: none;
+}
+
+.person-card .btn {
+  pointer-events: auto;
+}
+

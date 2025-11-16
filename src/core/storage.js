@@ -444,6 +444,116 @@ class StorageV2 {
   }
 
   /**
+   * Get upcoming meetings (today and future)
+   */
+  async getUpcomingMeetings() {
+    if (!this.db) await this.init();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['meetings'], 'readonly');
+      const store = transaction.objectStore('meetings');
+
+      const userId = this.getUserIdWithFallback();
+      if (!userId) {
+        console.warn('[StorageV2] No user ID available for getUpcomingMeetings');
+        resolve([]);
+        return;
+      }
+
+      const index = store.index('userId');
+      const request = index.getAll(userId);
+
+      request.onsuccess = () => {
+        const allMeetings = request.result || [];
+
+        // Filter meetings for today and future
+        const upcomingMeetings = allMeetings.filter(meeting => {
+          if (!meeting.scheduledDate) return false;
+          const meetingDate = new Date(meeting.scheduledDate);
+          return meetingDate >= today;
+        });
+
+        resolve(upcomingMeetings);
+      };
+
+      request.onerror = () => {
+        console.error('[StorageV2] Error getting upcoming meetings:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
+   * Get upcoming scheduled contacts (today and future meetings from nextMeetingDate)
+   */
+  async getUpcomingScheduledContacts() {
+    if (!this.db) await this.init();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    console.log('[StorageV2] getUpcomingScheduledContacts - Today:', today.toISOString());
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(['contacts'], 'readonly');
+      const store = transaction.objectStore('contacts');
+
+      const userId = this.getUserIdWithFallback();
+      if (!userId) {
+        console.warn('[StorageV2] No user ID available for getUpcomingScheduledContacts');
+        resolve([]);
+        return;
+      }
+
+      const index = store.index('userId');
+      const request = index.getAll(userId);
+
+      request.onsuccess = () => {
+        const allContacts = request.result || [];
+        console.log(`[StorageV2] Found ${allContacts.length} total contacts, checking for upcoming meetings...`);
+
+        // Filter contacts with nextMeetingDate scheduled for today or future
+        const contactsWithUpcomingMeeting = allContacts.filter(contact => {
+          if (!contact.nextMeetingDate && !contact.nextMeeting) return false;
+
+          // Check both nextMeetingDate (new field) and nextMeeting (old/alternative field)
+          const meetingDateStr = contact.nextMeetingDate || contact.nextMeeting;
+          const meetingDate = new Date(meetingDateStr);
+
+          const isTodayOrFuture = meetingDate >= today;
+
+          if (isTodayOrFuture) {
+            console.log('[StorageV2] Found contact with upcoming meeting:', contact.firstName || contact.name, meetingDateStr);
+          }
+
+          return isTodayOrFuture;
+        });
+
+        console.log('[StorageV2] Contacts with upcoming meetings:', contactsWithUpcomingMeeting.length);
+
+        // Convert contacts to meeting format for consistency with existing meetings
+        const formattedMeetings = contactsWithUpcomingMeeting.map(contact => ({
+          id: contact.id + '_scheduled_' + (contact.nextMeetingDate || contact.nextMeeting), // Create a unique ID
+          personId: contact.id,
+          scheduledDate: contact.nextMeetingDate || contact.nextMeeting,
+          topic: 'Scheduled Meeting',
+          fromContact: true // Flag to indicate this came from contact's next meeting field
+        }));
+
+        resolve(formattedMeetings);
+      };
+
+      request.onerror = () => {
+        console.error('[StorageV2] Error getting upcoming scheduled contacts:', request.error);
+        reject(request.error);
+      };
+    });
+  }
+
+  /**
    * Get contacts scheduled to meet today (from nextMeetingDate field)
    * This allows users to schedule meetings without creating full meeting records
    */
