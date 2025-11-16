@@ -181,6 +181,7 @@ class SyncService {
    */
   async initialSync() {
     console.log('[Sync] Performing initial sync');
+    console.log('[Sync] Current user:', window.authService.getCurrentUser()?.id);
 
     try {
       // First, push any unsynced changes
@@ -203,6 +204,15 @@ class SyncService {
       }
 
       console.log(`[Sync] Initial sync complete, loaded ${pullResult.contacts?.length || 0} contacts from server`);
+
+      // DEBUG: Log first few contacts
+      if (pullResult.contacts && pullResult.contacts.length > 0) {
+        console.log('[Sync] Sample contact from server:', {
+          id: pullResult.contacts[0].id,
+          name: pullResult.contacts[0].name,
+          userId: pullResult.contacts[0].userId
+        });
+      }
 
       return {
         success: true,
