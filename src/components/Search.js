@@ -56,24 +56,26 @@ class SearchView {
         e.preventDefault();
         const contactId = contactCard.dataset.contactId;
         if (contactId) {
-          console.log('[Search] Contact card clicked/touched:', contactId);
+          console.log('[Search] Contact card clicked:', contactId);
           this.viewContact(contactId);
         }
       }
     });
 
-    // Also handle touch events specifically for iOS
+    // Touch events for iOS - capture phase to prevent scrolling
     this.container.addEventListener('touchstart', (e) => {
       const contactCard = e.target.closest('.person-card');
       if (contactCard) {
-        contactCard.style.opacity = '0.7'; // Visual feedback
+        contactCard.style.opacity = '0.7';
+        // Prevent scrolling when touching a card
+        e.preventDefault();
       }
-    });
+    }, { passive: false });
 
     this.container.addEventListener('touchend', (e) => {
       const contactCard = e.target.closest('.person-card');
       if (contactCard) {
-        contactCard.style.opacity = '1'; // Restore opacity
+        contactCard.style.opacity = '1';
         const contactId = contactCard.dataset.contactId;
         if (contactId) {
           console.log('[Search] Contact card touched:', contactId);
@@ -320,7 +322,7 @@ class SearchView {
     const quickFacts = contact.quickFacts || [];
 
     return `
-      <div class="person-card" onclick="window.searchView.viewContact('${contact.id}')" style="cursor: pointer;">
+      <div class="person-card" data-contact-id="${contact.id}" style="cursor: pointer; -webkit-tap-highlight-color: transparent;">
         <div class="person-header">
           ${photoHtml}
           <div class="person-info">

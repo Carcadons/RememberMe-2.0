@@ -140,9 +140,10 @@ class TodayView {
           <div class="person-info">
             <h3>${displayName}</h3>
             <p>${contact.title || 'No title'}${contact.company ? ` at ${contact.company}` : ''}</p>
-            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
-              Meeting at ${this.formatTime(meeting.date)}
-            </p>
+            ${meeting.fromContact ?
+              `<p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Meeting scheduled ${this.formatDate(meeting.scheduledDate)}</p>` :
+              `<p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Meeting at ${this.formatTime(meeting.date || meeting.scheduledDate)}</p>`
+            }
           </div>
           <div style="margin-left: auto;">
             ${contact.starred ? '<div style="color: #f39c12;">★</div>' : ''}
@@ -346,6 +347,20 @@ class TodayView {
   truncate(text, length) {
     if (!text || text.length <= length) return text;
     return text.slice(0, length) + '...';
+  }
+
+  /**
+   * Format date in DD MMM YY format (e.g., 15 Nov 24)
+   * @param {string|Date} date
+   * @returns {string}
+   */
+  formatDate(date) {
+    const d = new Date(date);
+    const day = d.getDate().toString().padStart(2, '0');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear().toString().slice(-2);
+    return `${day} ${month} ${year}`;
   }
 }
 

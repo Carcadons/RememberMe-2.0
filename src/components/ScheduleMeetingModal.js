@@ -171,9 +171,18 @@ class ScheduleMeetingModal {
       return;
     }
 
+    // Debug log
+    console.log('[ScheduleMeetingModal] Scheduling meeting:', {
+      contactId,
+      meetingDate,
+      today: new Date().toISOString().split('T')[0]
+    });
+
     try {
-      // Load the contact
-      const contact = await window.storage.getContact(contactId);
+      // Get all contacts and find the selected one
+      const contacts = await window.storage.getAllContacts();
+      const contact = contacts.find(c => c.id === contactId);
+
       if (!contact) {
         alert('Contact not found');
         return;
@@ -183,6 +192,8 @@ class ScheduleMeetingModal {
       contact.nextMeetingDate = meetingDate;
       contact.updatedAt = new Date().toISOString();
 
+      console.log('[ScheduleMeetingModal] Saving contact with nextMeetingDate:', meetingDate);
+
       await window.storage.saveContact(contact);
 
       // Show success
@@ -190,7 +201,13 @@ class ScheduleMeetingModal {
 
       // Refresh views
       if (window.todayView) {
+        console.log('[ScheduleMeetingModal] Refreshing Today view...');
         await window.todayView.loadTodaysData();
+      }
+
+      if (window.searchView) {
+        console.log('[ScheduleMeetingModal] Refreshing Search view...');
+        await window.searchView.loadAllContacts();
       }
 
       this.hide();

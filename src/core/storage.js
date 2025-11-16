@@ -455,6 +455,8 @@ class StorageV2 {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    console.log('[StorageV2] getTodaysScheduledContacts - Today:', today.toISOString());
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(['contacts'], 'readonly');
       const store = transaction.objectStore('contacts');
@@ -471,6 +473,7 @@ class StorageV2 {
 
       request.onsuccess = () => {
         const allContacts = request.result || [];
+        console.log(`[StorageV2] Found ${allContacts.length} total contacts, checking for meetings scheduled today...`);
 
         // Filter contacts with nextMeetingDate scheduled for today
         const contactsMeetingToday = allContacts.filter(contact => {
@@ -480,8 +483,16 @@ class StorageV2 {
           const meetingDateStr = contact.nextMeetingDate || contact.nextMeeting;
           const meetingDate = new Date(meetingDateStr);
 
-          return meetingDate >= today && meetingDate < tomorrow;
+          const isToday = meetingDate >= today && meetingDate < tomorrow;
+
+          if (isToday) {
+            console.log('[StorageV2] Found contact meeting today:', contact.firstName || contact.name, meetingDateStr);
+          }
+
+          return isToday;
         });
+
+        console.log('[StorageV2] Contacts meeting today:', contactsMeetingToday.length);
 
         // Convert contacts to meeting format for consistency with existing meetings
         const formattedMeetings = contactsMeetingToday.map(contact => ({

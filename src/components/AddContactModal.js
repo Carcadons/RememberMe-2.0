@@ -151,6 +151,40 @@ class AddContactModal {
         this.hide();
       }
     };
+
+    // Date input display formatting
+    const lastMetInput = document.getElementById('contactLastMet');
+    const nextMeetingInput = document.getElementById('contactNextMeeting');
+
+    if (lastMetInput) {
+      lastMetInput.onchange = () => this.updateDateDisplay('contactLastMet', 'lastMetDisplay');
+    }
+    if (nextMeetingInput) {
+      nextMeetingInput.onchange = () => this.updateDateDisplay('contactNextMeeting', 'nextMeetingDisplay');
+    }
+  }
+
+  /**
+   * Format date as DD MMM YY (e.g., 15 Nov 24)
+   * @param {string} dateString
+   * @returns {string}
+   */
+  formatDisplayDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[date.getMonth()];
+    const year = date.getFullYear().toString().slice(-2);
+    return `${day} ${month} ${year}`;
+  }
+
+  updateDateDisplay(inputId, displayId) {
+    const input = document.getElementById(inputId);
+    const display = document.getElementById(displayId);
+    if (input && display && input.value) {
+      display.textContent = this.formatDisplayDate(input.value);
+    }
   }
 
   /**
