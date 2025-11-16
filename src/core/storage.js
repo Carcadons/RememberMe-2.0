@@ -9,17 +9,25 @@ class StorageV2 {
   }
 
   async init() {
+    console.log('[StorageV2] Init STARTED - About to open IndexedDB');
     return new Promise((resolve, reject) => {
+      console.log('[StorageV2] Opening IndexedDB:', this.dbName, 'version:', this.dbVersion);
       const request = indexedDB.open(this.dbName, this.dbVersion);
 
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        console.error('[StorageV2] DB OPEN FAILED:', request.error);
+        reject(request.error);
+      };
+
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('[StorageV2] Database initialized');
+        console.log('[StorageV2] Database opened successfully');
+        console.log('[StorageV2] Object stores:', Array.from(this.db.objectStoreNames));
         resolve(this.db);
       };
 
       request.onupgradeneeded = (event) => {
+        console.log('[StorageV2] onupgradeneeded FIRED!');
         const db = event.target.result;
         console.log(`[StorageV2] Upgrading database to version ${this.dbVersion}`);
 
@@ -60,17 +68,26 @@ class StorageV2 {
           }
         ];
 
+        console.log('[StorageV2] About to create stores:', stores.map(s => s.name));
+
         for (const storeConfig of stores) {
+          console.log('[StorageV2] Checking store:', storeConfig.name);
           if (!db.objectStoreNames.contains(storeConfig.name)) {
+            console.log('[StorageV2] Creating store:', storeConfig.name);
             const store = db.createObjectStore(storeConfig.name, { keyPath: storeConfig.keyPath });
             console.log(`[StorageV2] Created store: ${storeConfig.name}`);
 
             for (const index of storeConfig.indexes || []) {
+              console.log('[StorageV2] Creating index:', index.name);
               store.createIndex(index.name, index.keyPath, index.options);
               console.log(`[StorageV2] Created index: ${storeConfig.name}.${index.name}`);
             }
+          } else {
+            console.log('[StorageV2] Store already exists:', storeConfig.name);
           }
         }
+
+        console.log('[StorageV2] Upgrade complete!');
       };
     });
   }
