@@ -212,6 +212,14 @@ class AuthService {
   }
 
   /**
+   * Get current authentication token
+   * @returns {string|null} Current token or null
+   */
+  getCurrentToken() {
+    return this.token || localStorage.getItem('rememberme_token');
+  }
+
+  /**
    * Hash password for authentication
    * In zero-knowledge architecture, client handles password hashing
    * SECURITY WARNING: This is a simple hash for development/demo purposes only

@@ -442,6 +442,51 @@ class AddContactModal {
   }
 
   /**
+   * Retry sync for the last saved contact
+   */
+  async retrySync() {
+    console.log('[AddContactModal] Retry sync requested');
+
+    if (!window.syncService || !window.syncService.syncToServer) {
+      console.error('[AddContactModal] Sync service not available');
+      window.app.showError('Sync service not available');
+      return;
+    }
+
+    try {
+      // Check authentication first
+      const currentToken = window.authService?.getCurrentToken?.() ||
+                          window.authService?.token ||
+                          localStorage.getItem('rememberme_token');
+
+      if (!currentToken) {
+        window.app.showWarning('Please log in to sync contacts');
+        return;
+      }
+
+      window.app.showLoading();
+      const result = await window.syncService.syncToServer();
+      window.app.hideLoading();
+
+      if (result.success) {
+        console.log('[AddContactModal] Retry sync successful:', result);
+        window.app.showSuccess(`Sync successful! ${result.synced} items synced`);
+      } else {
+        console.warn('[AddContactModal] Retry sync failed:', result.error);
+        if (result.error === 'Not authenticated') {
+          window.app.showWarning('Please log in to sync contacts');
+        } else {
+          window.app.showWarning(`Sync failed: ${result.error}`);
+        }
+      }
+    } catch (error) {
+      console.error('[AddContactModal] Retry sync error:', error);
+      window.app.hideLoading();
+      window.app.showError('Sync failed: ' + error.message);
+    }
+  }
+
+  /**
    * Reset form
    */
   resetForm() {

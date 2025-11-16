@@ -69,13 +69,21 @@ class SyncService {
       return { success: false, error: 'Already syncing' };
     }
 
-    const token = window.authService.token;
+    // CRITICAL FIX: Get token with multiple fallbacks
+    const token = window.authService?.getCurrentToken?.() ||
+                  window.authService?.token ||
+                  localStorage.getItem('rememberme_token');
+
     if (!token) {
-      console.warn('[SyncV2] Not authenticated, cannot sync');
+      console.error('[SyncV2] ✗ Not authenticated - cannot sync');
+      this.isSyncing = false;
+      if (window.app) {
+        window.app.showWarning('Please log in to sync contacts to server');
+      }
       return { success: false, error: 'Not authenticated' };
     }
 
-    console.log('[SyncV2] Starting sync TO server');
+    console.log('[SyncV2] ✓ Authentication token found, starting sync...');
     this.isSyncing = true;
 
     try {
