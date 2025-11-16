@@ -35,18 +35,27 @@ class RememberMeApp {
     // Check authentication - if not authenticated, redirect to login
     console.log('[App] Checking initial authentication...');
     try {
-      // Wait a bit for all scripts to load if needed
-      if (window.authService && typeof window.authService.checkAuth === 'function') {
-        if (!window.authService.checkAuth()) {
-          console.log('[App] Not authenticated, redirecting to login page...');
+      // CRITICAL: Wait for authService to be available
+      if (window.authService) {
+        console.log('[App] Auth service available, checking auth...');
+        const isAuthenticated = window.authService.checkAuth();
+        console.log('[App] Auth check result:', isAuthenticated);
+
+        if (!isAuthenticated) {
+          console.log('[App] NOT AUTHENTICATED - Redirecting to login NOW');
           window.location.href = '/login.html';
           return;
         }
+        console.log('[App] User is authenticated, proceeding...');
       } else {
-        console.warn('[App] Auth service not ready, will check after initialization');
+        console.error('[App] CRITICAL: Auth service NOT AVAILABLE - redirecting to login');
+        window.location.href = '/login.html';
+        return;
       }
     } catch (error) {
-      console.warn('[App] Error during auth check:', error);
+      console.error('[App] CRITICAL AUTH ERROR:', error);
+      window.location.href = '/login.html';
+      return;
     }
 
     try {

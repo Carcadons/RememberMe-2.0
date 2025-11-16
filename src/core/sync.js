@@ -62,6 +62,8 @@ class SyncService {
    * Push local sync queue to server (v2 batch sync API)
    */
   async syncToServer() {
+    console.log('[SyncV2] ===== syncToServer() CALLED =====');
+
     if (this.isSyncing) {
       console.warn('[SyncV2] Already syncing, skipping');
       return { success: false, error: 'Already syncing' };
