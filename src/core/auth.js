@@ -28,7 +28,7 @@ class AuthService {
     console.log('[Auth] Registering user:', email);
 
     try {
-      const response = await fetch(`${this.apiUrl}/api/auth/register`, {
+      const response = await fetch(`${this.apiUrl}/api/v2/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ class AuthService {
     console.log('[Auth] Logging in user:', email);
 
     try {
-      const response = await fetch(`${this.apiUrl}/api/auth/login`, {
+      const response = await fetch(`${this.apiUrl}/api/v2/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -234,7 +234,13 @@ class AuthService {
     if (!this.user) return false;
 
     try {
-      const response = await fetch(`${this.apiUrl}/api/auth/user/${this.user.id}`);
+      const response = await fetch(`${this.apiUrl}/api/v2/auth/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token: this.token })
+      });
       const data = await response.json();
 
       if (data.success) {
