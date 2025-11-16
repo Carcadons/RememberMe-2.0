@@ -237,9 +237,49 @@ class StorageV2 {
       const index = store.index('userId');
       const request = index.getAll(userId);
 
-      request.onsuccess = () => {
-        console.log(`[StorageV2] Retrieved ${request.result.length} contacts for user ${userId}`);
-        resolve(request.result);
+      request.onsuccess = async () => {
+        const contacts = request.result || [];
+        console.log(`[StorageV2] Retrieved ${contacts.length} contacts for user ${userId}`);
+
+        // CRITICAL FIX: If no contacts found, try to recover from all contacts (user ID mismatch issue)
+        if (contacts.length === 0) {
+          console.warn('[StorageV2] No contacts found for current user, attempting recovery...');
+
+          const recoveryTransaction = this.db.transaction(['contacts'], 'readonly');
+          const recoveryStore = recoveryTransaction.objectStore('contacts');
+          const recoveryRequest = recoveryStore.getAll();
+
+          recoveryRequest.onsuccess = () => {
+            const allContacts = recoveryRequest.result || [];
+
+            if (allContacts.length > 0) {
+              console.warn(`[StorageV2] RECOVERY: Found ${allContacts.length} contacts with different user IDs`);
+              console.warn('[StorageV2] This indicates userId mismatch or auth state issue');
+
+              // Try to find contacts that match by structure (not by userId)
+              const potentiallyValidContacts = allContacts.filter(contact =>
+                contact && contact.firstName && contact.id
+              );
+
+              if (potentiallyValidContacts.length > 0) {
+                console.warn('[StorageV2] Returning recovered contacts:', potentiallyValidContacts.map(c => ({ id: c.id, name: c.firstName, userId: c.userId })));
+                alert('Data recovery: Found contacts with mismatched user IDs. Please contact support if this continues.');
+              }
+
+              resolve(potentiallyValidContacts);
+            } else {
+              console.log('[StorageV2] Recovery complete: No contacts found in database');
+              resolve([]);
+            }
+          };
+
+          recoveryRequest.onerror = () => {
+            console.error('[StorageV2] Recovery failed:', recoveryRequest.error);
+            resolve([]);
+          };
+        } else {
+          resolve(contacts);
+        }
       };
 
       request.onerror = () => {

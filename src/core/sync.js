@@ -209,6 +209,10 @@ class SyncService {
     }
 
     try {
+      // CREATE BACKUP: In case anything goes wrong, we can restore
+      console.log('[SyncV2] Creating local backup before sync...');
+      await this.createLocalBackup();
+
       // CRITICAL FIX: Fetch server data FIRST before destroying local data
       console.log('[SyncV2] Fetching server contacts...');
       const response = await fetch(`${this.apiUrl}/api/v2/contacts`, {
@@ -224,7 +228,7 @@ class SyncService {
 
       console.log(`[SyncV2] Initial sync received ${data.contacts?.length || 0} contacts`);
 
-      // SAFETY CHECK: Only clear local data if we successfully got server data
+      // SAFETY CHECK: Only clear local data if we successfully got server data AND it has content
       if (data.contacts && data.contacts.length > 0) {
         console.log('[SyncV2] Server has contacts, replacing local data...');
         await window.storage.clearAllData();
