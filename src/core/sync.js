@@ -134,6 +134,11 @@ class SyncService {
 
     } catch (error) {
       console.error('[SyncV2] Sync to server error:', error);
+      console.error('[SyncV2] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      });
       this.isSyncing = false;
       if (window.app) {
         window.app.showWarning(`Sync failed: ${error.message}. Data saved locally only.`);
