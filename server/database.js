@@ -186,7 +186,7 @@ class DatabaseV2 {
 
       // Sessions indexes
       `CREATE INDEX IF NOT EXISTS idx_sessions_v2_token ON sessions_v2(token)`,
-      `CREATE INDEX IF NOT EXISTS idx_sessions_v2_user_expires ON sessions_v2(user_id, expires_at) WHERE expires_at > NOW()`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_v2_user_expires ON sessions_v2(user_id, expires_at)`,
 
       // Audit log indexes
       `CREATE INDEX IF NOT EXISTS idx_audit_log_v2_user_date ON audit_log_v2(user_id, created_at DESC)`,
