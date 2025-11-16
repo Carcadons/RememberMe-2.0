@@ -74,10 +74,16 @@ class SyncService {
    * Sync contacts to server
    */
   async syncToServer() {
-    if (this.isSyncing) return { success: false, error: 'Already syncing' };
+    if (this.isSyncing) {
+      console.warn('[Sync] Already syncing, skipping');
+      return { success: false, error: 'Already syncing' };
+    }
 
     const token = this.getAuthToken();
-    if (!token) return { success: false, error: 'Not authenticated' };
+    if (!token) {
+      console.warn('[Sync] Not authenticated, cannot sync');
+      return { success: false, error: 'Not authenticated' };
+    }
 
     console.log('[Sync] Starting sync TO server');
     this.isSyncing = true;
@@ -88,10 +94,12 @@ class SyncService {
       console.log(`[Sync] Preparing to sync ${unsyncedContacts.length} unsynced contacts to server`);
 
       if (unsyncedContacts.length === 0) {
+        console.log('[Sync] No unsynced contacts to sync');
         this.isSyncing = false;
         return { success: true, synced: 0 };
       }
 
+      console.log('[Sync] Sending request to server...');
       const response = await fetch(`${this.apiUrl}/api/contacts/sync`, {
         method: 'POST',
         headers: {
@@ -101,18 +109,22 @@ class SyncService {
         body: JSON.stringify({ contacts: unsyncedContacts })
       });
 
+      console.log('[Sync] Response received, status:', response.status);
       const data = await response.json();
+      console.log('[Sync] Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Sync failed');
+        throw new Error(data.error || `Sync failed: ${response.status}`);
       }
 
       console.log(`[Sync] Successfully synced ${data.synced} contacts to server`);
 
       // Mark contacts as synced locally
+      console.log('[Sync] Marking contacts as synced locally...');
       for (const contact of unsyncedContacts) {
         try {
           await window.storage.markAsSynced('contacts', contact.id);
+          console.log('[Sync] Marked contact as synced:', contact.id);
         } catch (err) {
           console.warn('[Sync] Failed to mark contact as synced:', contact.id, err);
         }
@@ -123,6 +135,10 @@ class SyncService {
     } catch (error) {
       console.error('[Sync] Sync to server error:', error);
       this.isSyncing = false;
+      // Show error to user
+      if (window.app) {
+        window.app.showWarning(`Sync failed: ${error.message}. Data saved locally only.`);
+      }
       return { success: false, error: error.message };
     }
   }

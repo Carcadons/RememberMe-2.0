@@ -26,6 +26,20 @@ class RememberMeApp {
       crypto: 'crypto' in window && 'subtle' in window.crypto
     });
 
+    // Check if we're on the login page
+    if (window.location.pathname === '/login.html' || window.location.pathname === '/login') {
+      console.log('[App] On login page, skipping app initialization');
+      return;
+    }
+
+    // Check authentication - if not authenticated, redirect to login
+    console.log('[App] Checking initial authentication...');
+    if (window.authService && !window.authService.checkAuth()) {
+      console.log('[App] Not authenticated, redirecting to login page...');
+      window.location.href = '/login.html';
+      return;
+    }
+
     try {
       // Show loading state
       console.log('[App] Showing loading state');
@@ -204,22 +218,24 @@ class RememberMeApp {
     this.showLoading();
 
     try {
-      // Check local data and sync
-      console.log('[App] Checking local data for sync...');
+      // First, pull data from server to see what's there
+      console.log('[App] Pulling initial data from server...');
+      const syncFromResult = await window.syncService.syncFromServer();
+      console.log(`[App] Pulled ${syncFromResult.contacts?.length || 0} contacts from server`);
+
+      // Check local data
+      console.log('[App] Checking local data...');
       const localContacts = await window.storage.getAllContacts();
       console.log(`[App] Found ${localContacts.length} local contacts`);
 
-      if (localContacts.length > 0) {
-        // User has local data - sync it to server
-        console.log(`[App] Syncing ${localContacts.length} contacts to server...`);
+      // If user has local contacts that aren't on server, sync them up
+      const unsyncedContacts = await window.storage.getUnsynced('contacts');
+      if (unsyncedContacts.length > 0) {
+        console.log(`[App] Found ${unsyncedContacts.length} unsynced contacts, syncing to server...`);
         await window.syncService.syncToServer();
       }
 
-      // Then pull server data
-      console.log('[App] Pulling data from server...');
-      await window.syncService.syncFromServer();
-
-      // Reload UI
+      // Reload UI with merged data
       console.log('[App] Reloading UI...');
       await this.loadData();
 
@@ -350,15 +366,11 @@ class RememberMeApp {
       console.log('[App] Showing success message');
       this.showSuccess('Logged out successfully');
 
-      // Show auth modal after a delay
-      console.log('[App] Scheduling auth modal to show...');
+      // Redirect to login page
+      console.log('[App] Redirecting to login page...');
       setTimeout(() => {
-        console.log('[App] Showing auth modal now...');
-        if (window.authModal) {
-          window.authModal.show();
-        } else {
-          console.error('[App] AuthModal not available!');
-        }
+        console.log('[App] Redirecting now...');
+        window.location.href = '/login.html';
       }, 1000);
 
       console.log('[App] Logout complete');
@@ -375,7 +387,7 @@ class RememberMeApp {
    */
   clearAllViews() {
     document.getElementById('todayList').innerHTML = '';
-    document.getElementById('searchResults').innerHTML = '';
+    document.getElementById('contactsList').innerHTML = '';
     document.getElementById('starredList').innerHTML = '';
 
     document.getElementById('todayEmpty').classList.remove('hidden');

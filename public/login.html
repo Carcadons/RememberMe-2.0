@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>RememberMe - Sign In</title>
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="/css/design-system.css">
+    <link rel="stylesheet" href="/css/components.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-card {
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border-color);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .login-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .login-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-primary);
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #6366f1;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .login-footer p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .demo-banner {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .demo-banner h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #f59e0b;
+        }
+
+        .demo-banner p {
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .demo-credentials {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: var(--radius-xs);
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">R</div>
+                <h1 class="login-title">RememberMe</h1>
+                <p class="login-subtitle">Your people, remembered</p>
+            </div>
+
+            <div class="demo-banner">
+                <h3>🔐 Demo Account Available</h3>
+                <p>Try the app with demo credentials</p>
+                <div class="demo-credentials">
+                    Email: demo@rememberme.app<br>
+                    Password: demo123
+                </div>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="form-control" placeholder="your@email.com" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+                </div>
+
+                <div id="errorMessage" class="error-message"></div>
+
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span id="submitText">Sign In</span>
+                </button>
+            </form>
+
+            <div class="login-footer">
+                <p>Don't have an account?</p>
+                <button class="btn btn-link" id="switchToRegister">Create Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Scripts -->
+    <script src="/src/utils/encryption.js"></script>
+    <script src="/src/core/storage.js"></script>
+    <script src="/src/core/auth.js"></script>
+    <script src="/src/core/sync-postgres.js"></script>
+
+    <script>
+        // Login Page Controller
+        class LoginPage {
+            constructor() {
+                this.isLoginMode = true;
+                this.init();
+            }
+
+            init() {
+                console.log('[LoginPage] Initializing...');
+                this.attachEventListeners();
+                this.checkAuth();
+            }
+
+            attachEventListeners() {
+                const form = document.getElementById('loginForm');
+                const switchBtn = document.getElementById('switchToRegister');
+
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleSubmit();
+                });
+
+                switchBtn.addEventListener('click', () => {
+                    this.toggleMode();
+                });
+            }
+
+            checkAuth() {
+                // If already authenticated, redirect to app
+                if (window.authService && window.authService.checkAuth()) {
+                    console.log('[LoginPage] Already authenticated, redirecting...');
+                    window.location.href = '/';
+                }
+            }
+
+            toggleMode() {
+                this.isLoginMode = !this.isLoginMode;
+                const title = document.querySelector('.login-title');
+                const submitBtn = document.getElementById('submitText');
+                const switchBtn = document.getElementById('switchToRegister');
+                const footerText = document.querySelector('.login-footer p');
+
+                if (this.isLoginMode) {
+                    title.textContent = 'Sign In';
+                    submitBtn.textContent = 'Sign In';
+                    switchBtn.textContent = 'Create Account';
+                    footerText.textContent = "Don't have an account?";
+                } else {
+                    title.textContent = 'Create Account';
+                    submitBtn.textContent = 'Create Account';
+                    switchBtn.textContent = 'Sign In';
+                    footerText.textContent = 'Already have an account?';
+                }
+
+                this.clearError();
+            }
+
+            async handleSubmit() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                this.setLoading(true);
+                this.clearError();
+
+                try {
+                    let result;
+
+                    if (this.isLoginMode) {
+                        console.log('[LoginPage] Attempting login...');
+                        result = await window.authService.login(email, password);
+                    } else {
+                        // For registration, we need a name
+                        const name = email.split('@')[0];
+                        console.log('[LoginPage] Attempting registration...');
+                        result = await window.authService.register(email, password, name);
+                    }
+
+                    if (result.success) {
+                        console.log('[LoginPage] Authentication successful, redirecting...');
+
+                        // Show success for a moment then redirect
+                        this.showSuccess(this.isLoginMode ? 'Login successful!' : 'Account created!');
+
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1000);
+                    } else {
+                        this.showError(result.error || 'Authentication failed');
+                    }
+                } catch (error) {
+                    console.error('[LoginPage] Authentication error:', error);
+                    this.showError(error.message || 'An error occurred');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            setLoading(loading) {
+                const submitBtn = document.getElementById('submitBtn');
+                const submitText = document.getElementById('submitText');
+
+                if (loading) {
+                    submitBtn.classList.add('loading');
+                    submitBtn.disabled = true;
+                    submitText.innerHTML = '<div class="spinner"></div>';
+                } else {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                    submitText.textContent = this.isLoginMode ? 'Sign In' : 'Create Account';
+                }
+            }
+
+            showError(message) {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.textContent = message;
+                errorEl.classList.add('show');
+            }
+
+            clearError() {
+                const errorEl = document.getElementById('errorMessage');
+                errorEl.textContent = '';
+                errorEl.classList.remove('show');
+            }
+
+            showSuccess(message) {
+                const submitText = document.getElementById('submitText');
+                submitText.textContent = message;
+                submitBtn.classList.remove('loading');
+            }
+        }
+
+        // Initialize login page when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                window.loginPage = new LoginPage();
+            });
+        } else {
+            window.loginPage = new LoginPage();
+        }
+    </script>
+</body>
+</html>
