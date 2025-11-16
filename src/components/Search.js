@@ -50,48 +50,17 @@ class SearchView {
       }
     });
 
-    // CRITICAL FIX: Add touch/click event delegation for contact cards (iOS compatibility)
+    // CRITICAL FIX: Simple click handler for contact cards
     this.container.addEventListener('click', (e) => {
+      console.log('[Search] Container clicked, target:', e.target.tagName, e.target.className);
       const contactCard = e.target.closest('.person-card');
-      if (contactCard && !e.target.classList.contains('btn')) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (contactCard) {
         const contactId = contactCard.dataset.contactId;
-        if (contactId) {
-          console.log('[Search] Contact card clicked:', contactId);
+        console.log('[Search] Found contact card with ID:', contactId);
+        if (contactId && !e.target.closest('.btn')) {
+          console.log('[Search] Opening contact details');
           this.viewContact(contactId);
         }
-      }
-    });
-
-    // Handle touch events for iOS
-    this.container.addEventListener('touchstart', (e) => {
-      const contactCard = e.target.closest('.person-card');
-      if (contactCard && !e.target.classList.contains('btn')) {
-        this.activeTouchCard = contactCard;
-        contactCard.style.opacity = '0.7';
-      }
-    }, { passive: true });
-
-    this.container.addEventListener('touchend', (e) => {
-      const contactCard = e.target.closest('.person-card');
-      if (contactCard && !e.target.classList.contains('btn')) {
-        contactCard.style.opacity = '1';
-        if (this.activeTouchCard === contactCard) {
-          const contactId = contactCard.dataset.contactId;
-          if (contactId) {
-            console.log('[Search] Contact card touched:', contactId);
-            this.viewContact(contactId);
-          }
-        }
-        this.activeTouchCard = null;
-      }
-    });
-
-    this.container.addEventListener('touchcancel', () => {
-      if (this.activeTouchCard) {
-        this.activeTouchCard.style.opacity = '1';
-        this.activeTouchCard = null;
       }
     });
   }
@@ -379,8 +348,29 @@ class SearchView {
    */
   viewContact(contactId) {
     console.log('[Search] Viewing contact:', contactId);
-    // Will open detail modal
-    window.app.showContactDetail(contactId);
+    console.log('[Search] window.app exists:', !!window.app);
+    console.log('[Search] window.app.showContactDetail exists:', !!(window.app && window.app.showContactDetail));
+    console.log('[Search] window.contactDetailModal exists:', !!window.contactDetailModal);
+
+    if (!contactId) {
+      console.error('[Search] No contact ID provided');
+      return;
+    }
+
+    // Check multiple ways to show contact detail
+    if (window.app && window.app.showContactDetail) {
+      console.log('[Search] Calling window.app.showContactDetail');
+      window.app.showContactDetail(contactId);
+      return;
+    }
+
+    if (window.contactDetailModal) {
+      console.log('[Search] Calling window.contactDetailModal.show');
+      window.contactDetailModal.show(contactId);
+      return;
+    }
+
+    console.error('[Search] No contact detail modal available');
   }
 
   /**
