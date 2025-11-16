@@ -177,7 +177,9 @@ class AddContactModal {
     document.getElementById('saveContact').textContent = 'Update Contact';
 
     // Fill form with contact data
-    document.getElementById('contactName').value = contact.name || '';
+    // Combine firstName and lastName for the name field
+    const fullName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim();
+    document.getElementById('contactName').value = fullName;
     document.getElementById('contactTitle').value = contact.title || '';
     document.getElementById('contactCompany').value = contact.company || '';
     document.getElementById('contactHowWeMet').value = contact.howWeMet || '';
@@ -305,6 +307,11 @@ class AddContactModal {
       return;
     }
 
+    // Split name into firstName and lastName
+    const nameParts = name.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     // Validate edit mode state
     if (this.isEdit && !this.editingContact) {
       console.error('[AddContactModal] Error: isEdit is true but editingContact is null');
@@ -322,7 +329,8 @@ class AddContactModal {
       // Build contact data
       const contact = {
         id: this.isEdit ? this.editingContact.id : window.encryption.generateId(),
-        name: name,
+        firstName: firstName,
+        lastName: lastName,
         title: document.getElementById('contactTitle').value.trim(),
         company: document.getElementById('contactCompany').value.trim(),
         howWeMet: document.getElementById('contactHowWeMet').value.trim(),
@@ -335,7 +343,7 @@ class AddContactModal {
         notes: []
       };
 
-      console.log('[AddContactModal] Basic contact data:', { id: contact.id, name: contact.name });
+      console.log('[AddContactModal] Basic contact data:', { id: contact.id, firstName: contact.firstName, lastName: contact.lastName });
 
       // Get photo
       const photoPreview = document.getElementById('photoPreview');
