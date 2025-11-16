@@ -292,12 +292,3 @@
   opacity: 0.7;
 }
 
-/* Ensure all child elements are clickable */
-.person-card * {
-  pointer-events: none;
-}
-
-.person-card .btn {
-  pointer-events: auto;
-}
-
