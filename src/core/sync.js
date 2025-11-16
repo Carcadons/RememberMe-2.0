@@ -178,6 +178,26 @@ class SyncService {
   }
 
   /**
+   * Create local backup before destructive operations
+   * @private
+   */
+  async createLocalBackup() {
+    try {
+      const localContacts = await window.storage.getAllContacts();
+      // Store backup in localStorage (simple, works even if IndexedDB fails)
+      localStorage.setItem('rememberme_backup_contacts_' + Date.now(), JSON.stringify({
+        contacts: localContacts,
+        timestamp: new Date().toISOString()
+      }));
+      console.log(`[SyncV2] Created backup of ${localContacts.length} contacts`);
+      return localContacts;
+    } catch (error) {
+      console.warn('[SyncV2] Backup creation failed:', error);
+      return [];
+    }
+  }
+
+  /**
    * Perform initial sync after login (server-wins)
    */
   async initialSync() {
@@ -189,7 +209,8 @@ class SyncService {
     }
 
     try {
-      await window.storage.clearAllData();
+      // CRITICAL FIX: Fetch server data FIRST before destroying local data
+      console.log('[SyncV2] Fetching server contacts...');
       const response = await fetch(`${this.apiUrl}/api/v2/contacts`, {
         headers: {
           'Authorization': `Bearer ${window.authService.token}`
@@ -201,15 +222,22 @@ class SyncService {
         throw new Error(data.error || 'Initial sync failed');
       }
 
-      console.log(`[SyncV2] Initial sync received ${data.contacts.length} contacts`);
+      console.log(`[SyncV2] Initial sync received ${data.contacts?.length || 0} contacts`);
 
-      if (data.contacts.length > 0) {
+      // SAFETY CHECK: Only clear local data if we successfully got server data
+      if (data.contacts && data.contacts.length > 0) {
+        console.log('[SyncV2] Server has contacts, replacing local data...');
+        await window.storage.clearAllData();
         for (const contact of data.contacts) {
           await window.storage.saveContact(contact, true);
         }
+        console.log(`[SyncV2] Successfully synced ${data.contacts.length} server contacts`);
+      } else {
+        console.log('[SyncV2] No server contacts found, PRESERVING local data');
+        // Keep existing local contacts - DON'T WIPE THEM
       }
 
-      return { success: true, contacts: data.contacts };
+      return { success: true, contacts: data.contacts || [] };
 
     } catch (error) {
       console.error('[SyncV2] Initial sync error:', error);
