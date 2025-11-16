@@ -172,10 +172,11 @@ class Storage {
   /**
    * Add or update a contact
    * @param {Object} contact - Contact data
+   * @param {boolean} skipSync - Skip auto-sync (default false)
    * @returns {Promise<string>} - Contact ID
    */
-  async saveContact(contact) {
-    console.log('[Storage] saveContact called with:', contact);
+  async saveContact(contact, skipSync = false) {
+    console.log('[Storage] saveContact called with:', contact, 'skipSync:', skipSync);
 
     try {
       if (!this.db) {
@@ -213,33 +214,37 @@ class Storage {
         request.onsuccess = async () => {
           console.log('[Storage] Contact saved successfully:', contactId);
 
-          // Auto-sync to server if user is logged in
-          try {
-            console.log('[Storage] Checking auto-sync conditions...');
-            console.log('[Storage] authService exists:', !!window.authService);
-            if (window.authService) {
-              console.log('[Storage] isAuthenticated:', window.authService.isAuthenticated);
-              console.log('[Storage] token:', window.authService.token);
-              console.log('[Storage] current user:', window.authService.getCurrentUser());
-            }
-            console.log('[Storage] syncService exists:', !!window.syncService);
-
-            if (window.authService && window.authService.isAuthenticated && window.syncService) {
-              const user = window.authService.getCurrentUser();
-              console.log('[Storage] User for sync:', user);
-              if (user && user.id) {
-                console.log('[Storage] Auto-syncing contact to server...');
-                const result = await window.syncService.syncToServer();
-                console.log('[Storage] Auto-sync result:', result);
-              } else {
-                console.log('[Storage] Cannot auto-sync: no user ID');
+          // Auto-sync to server if user is logged in and skipSync is false
+          if (!skipSync) {
+            try {
+              console.log('[Storage] Checking auto-sync conditions...');
+              console.log('[Storage] authService exists:', !!window.authService);
+              if (window.authService) {
+                console.log('[Storage] isAuthenticated:', window.authService.isAuthenticated);
+                console.log('[Storage] token:', window.authService.token);
+                console.log('[Storage] current user:', window.authService.getCurrentUser());
               }
-            } else {
-              console.log('[Storage] Auto-sync conditions not met');
+              console.log('[Storage] syncService exists:', !!window.syncService);
+
+              if (window.authService && window.authService.isAuthenticated && window.syncService) {
+                const user = window.authService.getCurrentUser();
+                console.log('[Storage] User for sync:', user);
+                if (user && user.id) {
+                  console.log('[Storage] Auto-syncing contact to server...');
+                  const result = await window.syncService.syncToServer();
+                  console.log('[Storage] Auto-sync result:', result);
+                } else {
+                  console.log('[Storage] Cannot auto-sync: no user ID');
+                }
+              } else {
+                console.log('[Storage] Auto-sync conditions not met');
+              }
+            } catch (syncError) {
+              console.warn('[Storage] Auto-sync failed:', syncError);
+              // Don't reject the save just because sync failed
             }
-          } catch (syncError) {
-            console.warn('[Storage] Auto-sync failed:', syncError);
-            // Don't reject the save just because sync failed
+          } else {
+            console.log('[Storage] Skipping auto-sync as requested');
           }
 
           resolve(contactId);

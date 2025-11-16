@@ -77,6 +77,13 @@ class AuthModal {
     if (modal) {
       modal.remove();
     }
+
+    // Check if user is authenticated after hiding
+    if (!window.authService || !window.authService.checkAuth()) {
+      console.log('[AuthModal] User closed modal without authenticating, reloading page...');
+      // Force authentication by reloading
+      window.location.reload();
+    }
   }
 
   /**

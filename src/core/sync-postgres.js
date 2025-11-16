@@ -83,10 +83,11 @@ class SyncService {
     this.isSyncing = true;
 
     try {
-      const localContacts = await window.storage.getAllContacts();
-      console.log(`[Sync] Preparing to sync ${localContacts.length} contacts to server`);
+      // Only sync unsynced contacts to avoid duplicates
+      const unsyncedContacts = await window.storage.getUnsynced('contacts');
+      console.log(`[Sync] Preparing to sync ${unsyncedContacts.length} unsynced contacts to server`);
 
-      if (localContacts.length === 0) {
+      if (unsyncedContacts.length === 0) {
         this.isSyncing = false;
         return { success: true, synced: 0 };
       }
@@ -97,7 +98,7 @@ class SyncService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ contacts: localContacts })
+        body: JSON.stringify({ contacts: unsyncedContacts })
       });
 
       const data = await response.json();
@@ -107,6 +108,15 @@ class SyncService {
       }
 
       console.log(`[Sync] Successfully synced ${data.synced} contacts to server`);
+
+      // Mark contacts as synced locally
+      for (const contact of unsyncedContacts) {
+        try {
+          await window.storage.markAsSynced('contacts', contact.id);
+        } catch (err) {
+          console.warn('[Sync] Failed to mark contact as synced:', contact.id, err);
+        }
+      }
 
       this.isSyncing = false;
       return { success: true, synced: data.synced };

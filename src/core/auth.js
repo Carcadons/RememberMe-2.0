@@ -131,11 +131,20 @@ class AuthService {
    */
   checkAuth() {
     console.log('[Auth] Checking auth status, current isAuthenticated:', this.isAuthenticated);
+
+    // Always try to load session if not authenticated
     if (!this.isAuthenticated) {
       this.loadSession();
       console.log('[Auth] After loadSession, isAuthenticated:', this.isAuthenticated);
     }
-    return this.isAuthenticated;
+
+    // If we have token and user, we're authenticated
+    const hasToken = !!this.token;
+    const hasUser = !!this.user;
+    const isAuth = this.isAuthenticated && hasToken && hasUser;
+
+    console.log('[Auth] Final auth check - hasToken:', hasToken, 'hasUser:', hasUser, 'isAuthenticated:', isAuth);
+    return isAuth;
   }
 
   /**
@@ -156,19 +165,29 @@ class AuthService {
    */
   loadSession() {
     try {
+      console.log('[Auth] Attempting to load session from localStorage...');
+
       const userData = localStorage.getItem('rememberme_user');
       const authStatus = localStorage.getItem('rememberme_auth');
       const token = localStorage.getItem('rememberme_token');
 
-      if (userData && authStatus === 'true') {
+      console.log('[Auth] localStorage data - userData:', !!userData, 'authStatus:', authStatus, 'token:', !!token);
+
+      if (userData && authStatus === 'true' && token) {
         this.user = JSON.parse(userData);
         this.token = token;
         this.isAuthenticated = true;
-        console.log('[Auth] Session loaded for user:', this.user.id);
+        console.log('[Auth] Session loaded successfully for user:', this.user?.id);
+        return true;
+      } else {
+        console.log('[Auth] Session data incomplete, clearing session');
+        this.clearSession();
+        return false;
       }
     } catch (error) {
       console.error('[Auth] Error loading session:', error);
       this.clearSession();
+      return false;
     }
   }
 
