@@ -534,6 +534,16 @@ class RememberMeApp {
       });
     }
 
+    // Schedule Meeting button
+    const scheduleMeetingBtn = document.getElementById('scheduleMeetingBtn');
+    if (scheduleMeetingBtn) {
+      scheduleMeetingBtn.addEventListener('click', () => {
+        console.log('[App] Schedule Meeting (FAB) clicked');
+        this.hideFabMenu();
+        this.scheduleMeeting();
+      });
+    }
+
     // Desktop import buttons (in empty state)
     const importBtn = document.getElementById('importContactsBtnDesktop');
     if (importBtn) {
@@ -762,6 +772,17 @@ class RememberMeApp {
     this.hideFabMenu();
     if (window.addContactModal) {
       window.addContactModal.show();
+    }
+  }
+
+  /**
+   * Schedule a meeting (from FAB menu)
+   */
+  scheduleMeeting() {
+    console.log('[App] Schedule Meeting clicked');
+    if (window.addContactModal) {
+      // Configure the modal for quick schedule mode
+      window.addContactModal.showQuickSchedule();
     }
   }
 

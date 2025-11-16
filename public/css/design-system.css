@@ -213,6 +213,43 @@ small {
   padding: 1.5rem;
   width: 100%;
   margin: 0 auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* View Container - Fixed for iOS scrolling */
+.view {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.view.active {
+  display: flex;
+}
+
+/* Tab Bar - Fixed to bottom without movement */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(248, 250, 252, 0.95);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  padding: 0.75rem 0 max(0.75rem, env(safe-area-inset-bottom));
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @media (min-width: 768px) {
@@ -987,3 +1024,32 @@ small {
 .pointer { cursor: pointer; }
 .relative { position: relative; }
 .absolute { position: absolute; }
+
+
+/* Search results and lists - Ensure scrollability */
+.search-results-list,
+.meetings-list,
+.contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: min-content;
+}
+
+/* Person card touch optimization */
+.person-card {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .view {
+    height: calc(100vh - 140px);
+  }
+
+  .tab-bar {
+    position: fixed;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}

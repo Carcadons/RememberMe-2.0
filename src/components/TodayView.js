@@ -24,9 +24,17 @@ class TodayView {
     try {
       console.log('[TodayView] Loading today\'s data...');
 
-      // Get today's meetings
-      this.meetings = await window.storage.getTodaysMeetings();
-      console.log(`[TodayView] Found ${this.meetings.length} meetings today`);
+      // Get today's meetings from both sources:
+      // 1. Full meeting records from meetings table
+      // 2. Contacts with nextMeetingDate scheduled for today
+      const [todaysMeetings, scheduledContacts] = await Promise.all([
+        window.storage.getTodaysMeetings(),
+        window.storage.getTodaysScheduledContacts()
+      ]);
+
+      // Combine both lists
+      this.meetings = [...todaysMeetings, ...scheduledContacts];
+      console.log(`[TodayView] Found ${todaysMeetings.length} full meetings and ${scheduledContacts.length} scheduled contacts. Total: ${this.meetings.length}`);
 
       // Get all contacts for mapping
       this.contacts = await window.storage.getAllContacts();

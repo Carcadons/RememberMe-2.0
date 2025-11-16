@@ -58,7 +58,12 @@ class AddContactModal {
               <input type="text" id="contactHowWeMet" placeholder="e.g., Met at Web Summit 2024" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
 
               <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Last Met Date</label>
-              <input type="date" id="contactLastMet" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
+              <input type="date" id="contactLastMet" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 0.5rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
+              <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">When you last met (in the past)</p>
+
+              <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Next Meeting Date</label>
+              <input type="date" id="contactNextMeeting" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; font-size: 1rem; background: var(--bg-color); color: var(--text-primary);">
+              <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">When you're meeting next (in the future)</p>
             </div>
 
             <!-- Quick Facts (Memory Triggers) -->
@@ -154,6 +159,30 @@ class AddContactModal {
   show() {
     this.modal.style.display = 'flex';
     document.getElementById('contactFirstName').focus();
+  }
+
+  /**
+   * Show modal in quick schedule mode
+   */
+  showQuickSchedule() {
+    console.log('[AddContactModal] Showing quick schedule mode');
+
+    // Reset form first
+    this.resetForm();
+    this.isEdit = false;
+    this.editingContact = null;
+
+    // Set today's date as default for next meeting
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    document.getElementById('contactNextMeeting').value = todayStr;
+
+    // Update modal title
+    document.getElementById('contactModalTitle').textContent = 'Schedule Meeting';
+    document.getElementById('saveContact').textContent = 'Schedule';
+
+    // Open modal
+    this.show();
   }
 
   /**

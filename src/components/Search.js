@@ -48,6 +48,39 @@ class SearchView {
         this.clearResults();
       }
     });
+
+    // CRITICAL FIX: Add touch/click event delegation for contact cards (iOS compatibility)
+    this.container.addEventListener('click', (e) => {
+      const contactCard = e.target.closest('.person-card');
+      if (contactCard) {
+        e.preventDefault();
+        const contactId = contactCard.dataset.contactId;
+        if (contactId) {
+          console.log('[Search] Contact card clicked/touched:', contactId);
+          this.viewContact(contactId);
+        }
+      }
+    });
+
+    // Also handle touch events specifically for iOS
+    this.container.addEventListener('touchstart', (e) => {
+      const contactCard = e.target.closest('.person-card');
+      if (contactCard) {
+        contactCard.style.opacity = '0.7'; // Visual feedback
+      }
+    });
+
+    this.container.addEventListener('touchend', (e) => {
+      const contactCard = e.target.closest('.person-card');
+      if (contactCard) {
+        contactCard.style.opacity = '1'; // Restore opacity
+        const contactId = contactCard.dataset.contactId;
+        if (contactId) {
+          console.log('[Search] Contact card touched:', contactId);
+          this.viewContact(contactId);
+        }
+      }
+    });
   }
 
   /**
