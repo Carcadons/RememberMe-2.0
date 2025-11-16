@@ -451,27 +451,30 @@ class RememberMeApp {
       });
     }
 
-    // Mobile import buttons (in FAB menu)
+    // Mobile FAB menu buttons
     const addManualBtnMobile = document.getElementById('addManualContactBtn');
     if (addManualBtnMobile) {
       addManualBtnMobile.addEventListener('click', () => {
-        this.hideImportMenu();
+        console.log('[App] Create Contact (FAB) clicked');
+        this.hideFabMenu();
         this.addNewPerson();
       });
     }
 
-    const importBtnMobile = document.getElementById('importContactsBtnDesktopMobile');
-    if (importBtnMobile) {
-      importBtnMobile.addEventListener('click', () => {
-        this.hideImportMenu();
+    const importContactsBtnMobile = document.getElementById('importContactsBtnMobile');
+    if (importContactsBtnMobile) {
+      importContactsBtnMobile.addEventListener('click', () => {
+        console.log('[App] Import iPhone Contacts (FAB) clicked');
+        this.hideFabMenu();
         this.importContacts();
       });
     }
 
-    const linkedinBtnMobile = document.getElementById('importLinkedinBtnDesktopMobile');
-    if (linkedinBtnMobile) {
-      linkedinBtnMobile.addEventListener('click', () => {
-        this.hideImportMenu();
+    const importLinkedinBtnMobile = document.getElementById('importLinkedinBtnMobile');
+    if (importLinkedinBtnMobile) {
+      importLinkedinBtnMobile.addEventListener('click', () => {
+        console.log('[App] Import LinkedIn (FAB) clicked');
+        this.hideFabMenu();
         this.importLinkedinContacts();
       });
     }
@@ -497,14 +500,14 @@ class RememberMeApp {
       this.showWarning('You are offline');
     });
 
-    // Close import menu when clicking outside
+    // Close FAB menu when clicking outside
     document.addEventListener('click', (e) => {
-      const importMenu = document.getElementById('importMenu');
+      const fabMenu = document.getElementById('fabMenu');
       const fab = document.getElementById('addPersonBtn');
 
-      if (importMenu && !importMenu.classList.contains('hidden')) {
-        if (!importMenu.contains(e.target) && !fab.contains(e.target)) {
-          this.hideImportMenu();
+      if (fabMenu && !fabMenu.classList.contains('hidden')) {
+        if (!fabMenu.contains(e.target) && !fab.contains(e.target)) {
+          this.hideFabMenu();
         }
       }
     });
