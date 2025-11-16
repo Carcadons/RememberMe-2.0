@@ -409,22 +409,28 @@ class AddContactModal {
       this.hide();
 
       // CRITICAL: Automatically sync to server after saving
-      console.log('[AddContactModal] Triggering automatic sync to server...');
+      console.log('[AddContactModal] About to trigger automatic sync...');
+      console.log('[AddContactModal] window.syncService exists:', !!window.syncService);
+      console.log('[AddContactModal] window.syncService.syncToServer exists:', !!(window.syncService && window.syncService.syncToServer));
+      console.log('[AddContactModal] window.app exists:', !!window.app);
+
       if (window.syncService && window.syncService.syncToServer) {
+        console.log('[AddContactModal] Calling syncToServer()...');
         window.syncService.syncToServer().then(result => {
           if (result.success) {
-            console.log('[AddContactModal] Sync successful:', result);
+            console.log('[AddContactModal] ✓ Sync successful:', result);
             window.app.showSuccess(`Contact synced to server! (${result.synced || 0} items synced)`);
           } else {
-            console.warn('[AddContactModal] Sync failed:', result.error);
+            console.warn('[AddContactModal] ✗ Sync failed:', result.error);
             window.app.showWarning(`Contact saved locally but sync failed: ${result.error}`);
           }
         }).catch(error => {
-          console.error('[AddContactModal] Sync error:', error);
+          console.error('[AddContactModal] ✗ Sync error:', error);
           window.app.showWarning('Contact saved locally but sync to server failed');
         });
       } else {
-        console.warn('[AddContactModal] No sync service available');
+        console.error('[AddContactModal] ✗ No sync service available - sync NOT triggered!');
+        console.error('[AddContactModal] Available services:', { syncService: !!window.syncService, app: !!window.app });
       }
 
     } catch (error) {
