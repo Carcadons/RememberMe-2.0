@@ -214,10 +214,15 @@ class AuthService {
   /**
    * Hash password for authentication
    * In zero-knowledge architecture, client handles password hashing
+   * SECURITY WARNING: This is a simple hash for development/demo purposes only
+   * TODO: Replace with proper client-side password hashing before production
+   * Recommended: bcrypt, Argon2, or PBKDF2 with proper salt handling
    * @param {string} password
    */
   hashPassword(password) {
-    // Simple hash for demo - in production use proper client-side hashing
+    // !!!! SECURITY WARNING !!!!
+    // Simple hash for demo ONLY - extremely insecure for production use
+    // In production, use: bcrypt.hash(password, 10) or Argon2
     let hash = 0;
     for (let i = 0; i < password.length; i++) {
       const char = password.charCodeAt(i);

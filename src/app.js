@@ -34,10 +34,19 @@ class RememberMeApp {
 
     // Check authentication - if not authenticated, redirect to login
     console.log('[App] Checking initial authentication...');
-    if (window.authService && !window.authService.checkAuth()) {
-      console.log('[App] Not authenticated, redirecting to login page...');
-      window.location.href = '/login.html';
-      return;
+    try {
+      // Wait a bit for all scripts to load if needed
+      if (window.authService && typeof window.authService.checkAuth === 'function') {
+        if (!window.authService.checkAuth()) {
+          console.log('[App] Not authenticated, redirecting to login page...');
+          window.location.href = '/login.html';
+          return;
+        }
+      } else {
+        console.warn('[App] Auth service not ready, will check after initialization');
+      }
+    } catch (error) {
+      console.warn('[App] Error during auth check:', error);
     }
 
     try {

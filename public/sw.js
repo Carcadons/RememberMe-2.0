@@ -1,18 +1,25 @@
 // RememberMe Service Worker
 // Handles offline caching, sync, and push notifications
 
-const CACHE_NAME = 'rememberme-v1';
+const CACHE_NAME = 'rememberme-v3';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/login.html',
   '/manifest.json',
   '/src/app.js',
   '/src/utils/encryption.js',
+  '/src/utils/photoCropper.js',
   '/src/core/storage.js',
+  '/src/core/auth.js',
+  '/src/core/sync.js',
   '/src/core/security.js',
   '/src/components/TodayView.js',
-  '/src/components/PersonCard.js',
-  '/src/components/Search.js'
+  '/src/components/Search.js',
+  '/src/components/StarredView.js',
+  '/src/components/ContactDetail.js',
+  '/src/components/AddContactModal.js',
+  '/src/components/UserMenu.js'
 ];
 
 // Install event - cache resources
